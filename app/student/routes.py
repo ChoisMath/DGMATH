@@ -30,31 +30,18 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 
+# Import shared utilities and database connections
+from app.db import get_supabase, get_solapi
+from app.config import Config
+
 # Blueprint 생성
 student_bp = Blueprint('student', __name__, url_prefix='/student')
 
-# Supabase 초기화 (main app에서 전역 변수로 가져오기)
-SUPABASE_AVAILABLE = False
-supabase = None
-SOLAPI_AVAILABLE = False
-solapi_service = None
-SOLAPI_API_KEY = ""
-SOLAPI_API_SECRET = ""
-SOLAPI_SENDER_PHONE = ""
-
-def init_student_routes(app):
-    """학생 라우트 초기화 (main app의 전역 변수들을 가져오기)"""
-    global SUPABASE_AVAILABLE, supabase, SOLAPI_AVAILABLE, solapi_service
-    global SOLAPI_API_KEY, SOLAPI_API_SECRET, SOLAPI_SENDER_PHONE
-    
-    # main app의 전역 변수들 가져오기
-    SUPABASE_AVAILABLE = getattr(app, 'SUPABASE_AVAILABLE', False)
-    supabase = getattr(app, 'supabase', None)
-    SOLAPI_AVAILABLE = getattr(app, 'SOLAPI_AVAILABLE', False)
-    solapi_service = getattr(app, 'solapi_service', None)
-    SOLAPI_API_KEY = getattr(app, 'SOLAPI_API_KEY', "")
-    SOLAPI_API_SECRET = getattr(app, 'SOLAPI_API_SECRET', "")
-    SOLAPI_SENDER_PHONE = getattr(app, 'SOLAPI_SENDER_PHONE', "")
+# Get database connection
+supabase = get_supabase()
+SUPABASE_AVAILABLE = supabase is not None
+solapi_service = get_solapi()
+SOLAPI_AVAILABLE = solapi_service is not None
 
 # === 헬퍼 함수들 ===
 
@@ -126,7 +113,7 @@ def send_sms_notification(phone_number, message, booth_id=None, student_id=None)
         # SOLAPI를 통한 SMS 발송
         response = solapi_service.send_one({
             'to': clean_phone,
-            'from': SOLAPI_SENDER_PHONE,
+            'from': Config.SOLAPI_SENDER_PHONE,
             'text': message
         })
         
