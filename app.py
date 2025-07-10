@@ -4,59 +4,110 @@
 
 import os
 from flask import Flask
-from app.config import Config
-from app.db import init_supabase, init_solapi
 
-def create_app():
-    """Flask 애플리케이션 팩토리"""
-    flask_app = Flask(__name__, 
-                     template_folder='templates',
-                     static_folder='static')
-    
-    flask_app.config.from_object(Config)
-    
-    # Supabase 초기화
-    init_supabase()
-    
-    # Blueprint 등록
-    from app.main.routes import main_bp
-    from app.admin.routes import admin_bp
-    from app.booth.routes import booth_bp
-    from app.student.routes import student_bp
-    
-    flask_app.register_blueprint(main_bp)
-    flask_app.register_blueprint(admin_bp, url_prefix='/admin')
-    flask_app.register_blueprint(booth_bp)
-    flask_app.register_blueprint(student_bp)
-    
-    return flask_app
+print("🚀 Starting app initialization...")
 
-# Railway/gunicorn을 위한 app 객체 생성
 try:
-    app = create_app()
-    print("✅ App created successfully")
+    # Get correct paths
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    template_dir = os.path.join(project_root, 'templates')
+    static_dir = os.path.join(project_root, 'static')
+
+    print(f"📁 Project root: {project_root}")
+    print(f"📁 Template directory: {template_dir}")
+    print(f"📁 Templates exist: {os.path.exists(template_dir)}")
+
+    # Create Flask app
+    app = Flask(__name__, 
+               template_folder=template_dir,
+               static_folder=static_dir)
+
+    app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+    print("✅ Basic Flask app created")
+except Exception as e:
+    print(f"❌ Error creating basic Flask app: {e}")
+    # Create minimal fallback app
+    app = Flask(__name__)
+    app.secret_key = 'fallback-secret-key'
+
+# Initialize database
+try:
+    from app.db import init_supabase, init_solapi
+    init_supabase()
+    print("✅ Supabase initialized")
     
-    # SOLAPI SMS 서비스 초기화
     with app.app_context():
         init_solapi()
-        print("✅ SOLAPI initialized")
-        
+    print("✅ SOLAPI initialized")
 except Exception as e:
-    print(f"❌ Error creating app: {e}")
-    import traceback
-    traceback.print_exc()
+    print(f"❌ Database initialization error: {e}")
+
+# Register blueprints
+try:
+    from app.main.routes import main_bp
+    app.register_blueprint(main_bp)
+    print(f"✅ main_bp registered")
+except Exception as e:
+    print(f"❌ Error registering main_bp: {e}")
+
+try:
+    from app.admin.routes import admin_bp
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+    print(f"✅ admin_bp registered")
+except Exception as e:
+    print(f"❌ Error registering admin_bp: {e}")
+
+try:
+    from app.booth.routes import booth_bp
+    app.register_blueprint(booth_bp)
+    print(f"✅ booth_bp registered")
+except Exception as e:
+    print(f"❌ Error registering booth_bp: {e}")
+
+try:
+    from app.student.routes import student_bp
+    app.register_blueprint(student_bp)
+    print(f"✅ student_bp registered")
+except Exception as e:
+    print(f"❌ Error registering student_bp: {e}")
+
+# Add health check
+@app.route('/health')
+def health_check():
+    return {"status": "healthy", "message": "대구수학축제 시스템 정상 작동 중"}
+
+# Print all routes for debugging
+try:
+    print("📋 All registered routes:")
+    for rule in app.url_map.iter_rules():
+        print(f"  {rule.rule} -> {rule.endpoint}")
     
-    # Fallback minimal app
-    app = Flask(__name__)
-    
+    print(f"Total routes registered: {len(list(app.url_map.iter_rules()))}")
+    print("🎉 App setup completed successfully!")
+except Exception as e:
+    print(f"❌ Error listing routes: {e}")
+
+# Ensure app object is available at module level
+print(f"🔧 Setting app object in globals...")
+globals()['app'] = app
+print(f"✅ App object set: {type(app)}")
+
+# Add fallback route if main blueprint failed to register
+try:
+    # Check if main.index route exists
+    has_main_index = any(rule.endpoint == 'main.index' for rule in app.url_map.iter_rules())
+    if not has_main_index:
+        @app.route('/')
+        def fallback_index():
+            return "대구수학축제 부스 예약 및 관리 시스템 - Blueprint 로딩 실패"
+        print("⚠️ Added fallback index route")
+    else:
+        print("✅ Main index route found, no fallback needed")
+except Exception as e:
+    print(f"❌ Error checking routes: {e}")
     @app.route('/')
-    def error_page():
-        return f"Error: {e}"
+    def emergency_fallback():
+        return "시스템 로딩 중..."
 
 if __name__ == '__main__':
-    print("="*50)
-    print("🚀 대구수학축제 부스 예약 및 관리 시스템 시작")
-    print("📁 새로운 모듈 구조로 실행 중...")
-    print("="*50)
-    
     app.run(debug=True, host='0.0.0.0', port=5000)
