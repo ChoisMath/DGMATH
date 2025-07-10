@@ -15,7 +15,7 @@ import base64
 import hashlib
 import uuid
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
@@ -31,6 +31,7 @@ from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from werkzeug.utils import secure_filename
 from app.db import get_solapi, get_supabase
 from app.config import Config
+from solapi.model import RequestMessage
 
 def encrypt_password(password):
     """비밀번호를 암호화 (Base64 + MD5 해시)"""
@@ -96,14 +97,14 @@ def send_sms_notification(phone_number, message, booth_id=None, student_id=None)
         
         formatted_phone = format_phone_number(phone_number)
         
-        sms_data = {
-            'to': formatted_phone,
-            'from': Config.SOLAPI_SENDER_PHONE,
-            'text': message
-        }
+        message_obj = RequestMessage(
+            from_=Config.SOLAPI_SENDER_PHONE,
+            to=formatted_phone,
+            text=message
+        )
         
         try:
-            response = solapi_service.send_one(sms_data)
+            response = solapi_service.send(message_obj)
             print(f"✅ SMS 발송 성공: {formatted_phone}")
             
             if supabase:
