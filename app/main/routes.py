@@ -95,6 +95,50 @@ def student_info_redirect():
     from flask import redirect, url_for
     return redirect(url_for('student.student_info'))
 
+# === Student API Redirects ===
+
+@main_bp.route('/api/student-booth-list', methods=['POST'])
+def student_booth_list_redirect():
+    """Redirect to proper student booth list API"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.api_student_booth_list'), code=307)
+
+@main_bp.route('/api/apply-to-queue', methods=['POST'])
+def apply_to_queue_redirect():
+    """Redirect to proper apply to queue API"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.api_apply_to_queue'), code=307)
+
+@main_bp.route('/api/my-queue', methods=['POST'])
+def my_queue_redirect():
+    """Redirect to proper my queue API"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.api_my_queue'), code=307)
+
+@main_bp.route('/api/cancel-queue', methods=['POST'])
+def cancel_queue_redirect():
+    """Redirect to proper cancel queue API"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.api_cancel_queue'), code=307)
+
+@main_bp.route('/api/student-records', methods=['POST'])
+def student_records_redirect():
+    """Redirect to proper student records API"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.api_student_records'), code=307)
+
+@main_bp.route('/api/certificate', methods=['POST'])
+def certificate_redirect():
+    """Redirect to proper certificate API"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.api_certificate'), code=307)
+
+@main_bp.route('/api/generate-certificate-pdf', methods=['POST'])
+def generate_certificate_pdf_redirect():
+    """Redirect to proper certificate PDF API"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.api_generate_certificate_pdf'), code=307)
+
 # === Health Check Route ===
 
 @main_bp.route('/health')

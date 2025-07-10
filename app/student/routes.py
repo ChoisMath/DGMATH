@@ -493,6 +493,9 @@ def api_student_booth_list():
     if not SUPABASE_AVAILABLE:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
+    data = request.get_json()
+    student_id = data.get('student_id')
+    
     try:
         # 모든 활성 부스 조회
         booths_result = supabase.table('booths').select('*').eq('is_active', True).order('created_at', desc=True).execute()
@@ -504,6 +507,13 @@ def api_student_booth_list():
                 queue_result = supabase.table('queue_entries').select('id').eq('booth_id', booth['id']).eq('status', 'waiting').execute()
                 queue_count = len(queue_result.data) if queue_result.data else 0
                 
+                # 해당 학생의 이 부스에 대한 대기신청 상태 확인
+                application_status = None
+                if student_id:
+                    student_queue_result = supabase.table('queue_entries').select('status').eq('booth_id', booth['id']).eq('student_id', student_id).in_('status', ['waiting', 'called']).execute()
+                    if student_queue_result.data:
+                        application_status = student_queue_result.data[0]['status']
+                
                 booth_data = {
                     'id': booth['id'],
                     'name': booth['name'],
@@ -511,7 +521,8 @@ def api_student_booth_list():
                     'description': booth['description'],
                     'pdf_file_path': booth['pdf_file_path'],
                     'queue_count': queue_count,
-                    'created_at': booth['created_at']
+                    'created_at': booth['created_at'],
+                    'application_status': application_status  # 추가: 'waiting', 'called', 또는 None
                 }
                 booths.append(booth_data)
         

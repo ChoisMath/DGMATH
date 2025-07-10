@@ -156,8 +156,22 @@
             let html = '';
             booths.forEach(booth => {
                 const queueCount = booth.queue_count || 0;
-                const statusText = booth.queue_status || '대기가능';
                 const statusColor = queueCount === 0 ? '#00ffe7' : queueCount < 10 ? '#ffa500' : '#ff6b6b';
+                
+                // 대기신청 상태에 따른 버튼 텍스트 및 상태 결정
+                let applicationButtonText = '대기 신청';
+                let applicationButtonDisabled = false;
+                let applicationButtonStyle = '';
+                
+                if (booth.application_status === 'waiting') {
+                    applicationButtonText = '대기중';
+                    applicationButtonDisabled = true;
+                    applicationButtonStyle = 'background: #666; cursor: not-allowed;';
+                } else if (booth.application_status === 'called') {
+                    applicationButtonText = '호출됨';
+                    applicationButtonDisabled = true;
+                    applicationButtonStyle = 'background: #ffa500; cursor: not-allowed;';
+                }
                 
                 html += `
                     <div class="booth-card">
@@ -167,7 +181,15 @@
                         <p><strong>대기 인원:</strong> <span style="color: ${statusColor}">${queueCount}명</span></p>
                         <div class="booth-actions">
                             <button onclick="viewBoothDetails(${booth.id})" class="neon-btn">상세보기</button>
-                            <button onclick="applyToQueue(${booth.id})" class="neon-btn">대기 신청</button>
+                            <button 
+                                onclick="${applicationButtonDisabled ? '' : `applyToQueue(${booth.id})`}" 
+                                class="neon-btn" 
+                                ${applicationButtonDisabled ? 'disabled' : ''}
+                                style="${applicationButtonStyle}"
+                                data-booth-id="${booth.id}"
+                            >
+                                ${applicationButtonText}
+                            </button>
                         </div>
                     </div>
                 `;
@@ -202,10 +224,32 @@
             const queueCount = booth.queue_count || 0;
             queueDiv.innerHTML = `<p><strong>현재 대기 인원:</strong> ${queueCount}명</p>`;
             
+            // 대기신청 상태에 따른 버튼 텍스트 및 상태 결정
+            let applicationButtonText = '대기 신청';
+            let applicationButtonDisabled = false;
+            let applicationButtonStyle = '';
+            
+            if (booth.application_status === 'waiting') {
+                applicationButtonText = '대기중';
+                applicationButtonDisabled = true;
+                applicationButtonStyle = 'background: #666; cursor: not-allowed;';
+            } else if (booth.application_status === 'called') {
+                applicationButtonText = '호출됨';
+                applicationButtonDisabled = true;
+                applicationButtonStyle = 'background: #ffa500; cursor: not-allowed;';
+            }
+            
             // 액션 버튼
             const actionsDiv = document.getElementById('modalBoothActions');
             actionsDiv.innerHTML = `
-                <button onclick="applyToQueue(${booth.id})" class="neon-btn">대기 신청</button>
+                <button 
+                    onclick="${applicationButtonDisabled ? '' : `applyToQueue(${booth.id})`}" 
+                    class="neon-btn" 
+                    ${applicationButtonDisabled ? 'disabled' : ''}
+                    style="${applicationButtonStyle}"
+                >
+                    ${applicationButtonText}
+                </button>
                 <button onclick="closeModal()" class="neon-btn">닫기</button>
             `;
             
@@ -236,14 +280,55 @@
                 
                 if (data.ok) {
                     alert(`대기 신청이 완료되었습니다! 대기 순번: ${data.queue_position}번`);
+                    
+                    // 해당 부스의 신청 상태를 업데이트
+                    const boothIndex = allBooths.findIndex(b => b.id === boothId);
+                    if (boothIndex !== -1) {
+                        allBooths[boothIndex].application_status = 'waiting';
+                        allBooths[boothIndex].queue_count = (allBooths[boothIndex].queue_count || 0) + 1;
+                    }
+                    
+                    // 버튼 상태 즉시 업데이트 (부스 목록)
+                    updateBoothButtonState(boothId, 'waiting');
+                    
                     closeModal();
-                    loadBoothList(); // 부스 목록 새로고침
+                    // 부스 목록 전체 새로고침 (서버 데이터와 동기화)
+                    loadBoothList();
                 } else {
                     alert('대기 신청 실패: ' + data.message);
                 }
             } catch (error) {
                 console.error('Error:', error);
                 alert('대기 신청 중 오류가 발생했습니다.');
+            }
+        }
+        
+        // 특정 부스의 버튼 상태 업데이트
+        function updateBoothButtonState(boothId, newStatus) {
+            const button = document.querySelector(`button[data-booth-id="${boothId}"]`);
+            if (button) {
+                let buttonText = '대기 신청';
+                let buttonStyle = '';
+                
+                if (newStatus === 'waiting') {
+                    buttonText = '대기중';
+                    buttonStyle = 'background: #666; cursor: not-allowed;';
+                    button.disabled = true;
+                    button.onclick = null;
+                } else if (newStatus === 'called') {
+                    buttonText = '호출됨';
+                    buttonStyle = 'background: #ffa500; cursor: not-allowed;';
+                    button.disabled = true;
+                    button.onclick = null;
+                } else {
+                    buttonText = '대기 신청';
+                    buttonStyle = '';
+                    button.disabled = false;
+                    button.onclick = () => applyToQueue(boothId);
+                }
+                
+                button.textContent = buttonText;
+                button.style.cssText = buttonStyle;
             }
         }
         
@@ -326,6 +411,7 @@
                 if (data.ok) {
                     alert('대기 신청이 취소되었습니다.');
                     loadMyQueue(); // 목록 새로고침
+                    loadBoothList(); // 부스 목록도 새로고침하여 버튼 상태 업데이트
                 } else {
                     alert('취소 실패: ' + data.message);
                 }
@@ -559,6 +645,18 @@
             
             .close:hover {
                 color: #fff;
+            }
+            
+            /* 비활성화된 버튼 스타일 */
+            .neon-btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed !important;
+                box-shadow: none;
+            }
+            
+            .neon-btn:disabled:hover {
+                transform: none;
+                box-shadow: none;
             }
         `;
         document.head.appendChild(style);
