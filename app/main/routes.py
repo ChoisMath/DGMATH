@@ -95,6 +95,12 @@ def student_info_redirect():
     from flask import redirect, url_for
     return redirect(url_for('student.student_info'))
 
+@main_bp.route('/student-dashboard')
+def student_dashboard_redirect():
+    """Redirect to proper student dashboard route"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.student_dashboard'))
+
 # === Student API Redirects ===
 
 @main_bp.route('/api/student-booth-list', methods=['POST'])
@@ -138,6 +144,31 @@ def generate_certificate_pdf_redirect():
     """Redirect to proper certificate PDF API"""
     from flask import redirect, url_for
     return redirect(url_for('student.api_generate_certificate_pdf'), code=307)
+
+@main_bp.route('/api/student-login', methods=['POST'])
+def student_login_api_redirect():
+    """Redirect to proper student login API"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.api_student_login'), code=307)
+
+@main_bp.route('/api/create-student-account', methods=['POST'])
+def create_student_account_redirect():
+    """Redirect to proper create student account API"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.api_create_student_account'), code=307)
+
+@main_bp.route('/api/check-id-duplicate', methods=['POST'])
+def check_id_duplicate_redirect():
+    """Redirect to proper check ID duplicate API"""
+    from flask import redirect, url_for, request
+    # 학생 계정 생성 페이지에서 오는 요청을 student API로 리다이렉트
+    return redirect(url_for('student.api_check_id_duplicate'), code=307)
+
+@main_bp.route('/api/check-student-id-duplicate', methods=['POST'])
+def check_student_id_duplicate_redirect():
+    """Redirect to proper check student ID duplicate API"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.api_check_id_duplicate'), code=307)
 
 # === Health Check Route ===
 
