@@ -30,24 +30,28 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 
-# Import shared utilities and database connections
-from app.db import get_supabase, get_solapi
-from app.config import Config
-
 # Blueprint 생성
 student_bp = Blueprint('student', __name__, url_prefix='/student')
 
-# Get database connection
-supabase = get_supabase()
-SUPABASE_AVAILABLE = supabase is not None
-solapi_service = get_solapi()
-SOLAPI_AVAILABLE = solapi_service is not None
+# Import shared utilities and database connections (lazy loading)
+from app.db import get_supabase, get_solapi
+from app.config import Config
+
+# Database connections will be initialized lazily
+def get_student_supabase():
+    """Get Supabase client for student routes"""
+    return get_supabase()
+
+def get_student_solapi():
+    """Get SOLAPI service for student routes"""
+    return get_solapi()
 
 # === 헬퍼 함수들 ===
 
 def get_event_name():
     """행사명 가져오기"""
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return "대구수학축제"
     
     try:
@@ -61,7 +65,8 @@ def get_event_name():
 
 def generate_certificate_number():
     """대수페-25-0001 형식의 순차 인증서 번호 생성"""
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return "대수페-25-TEMP"
     
     try:
@@ -99,7 +104,8 @@ def encrypt_password(password):
 def send_sms_notification(phone_number, message, booth_id=None, student_id=None):
     """SOLAPI를 사용한 SMS 알림 발송"""
     try:
-        if not SOLAPI_AVAILABLE:
+        solapi_service = get_student_solapi()
+        if not solapi_service:
             print(f"SMS 발송 (개발 모드 - SOLAPI 비활성화): {phone_number} - {message}")
             return True
         
@@ -134,7 +140,8 @@ def send_sms_notification(phone_number, message, booth_id=None, student_id=None)
             success = True
         
         # 알림 로그 저장
-        if SUPABASE_AVAILABLE:
+        supabase = get_student_supabase()
+        if supabase:
             try:
                 log_data = {
                     'phone_number': phone_number,
@@ -154,7 +161,8 @@ def send_sms_notification(phone_number, message, booth_id=None, student_id=None)
         print(f"SMS 발송 중 오류: {e}")
         
         # 실패 로그 저장
-        if SUPABASE_AVAILABLE:
+        supabase = get_student_supabase()
+        if supabase:
             try:
                 log_data = {
                     'phone_number': phone_number,
@@ -354,7 +362,8 @@ def student_info():
 # --- 학생 계정 생성 API ---
 @student_bp.route('/api/create-account', methods=['POST'])
 def api_create_student_account():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -398,7 +407,8 @@ def api_create_student_account():
 # --- 학생 로그인 API ---
 @student_bp.route('/api/login', methods=['POST'])
 def api_student_login():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -431,7 +441,8 @@ def api_student_login():
 # --- ID 중복 확인 API ---
 @student_bp.route('/api/check-id-duplicate', methods=['POST'])
 def api_check_id_duplicate():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'available': False, 'message': 'Supabase가 설정되지 않았습니다.'}), 500
     
     data = request.get_json()
@@ -477,7 +488,8 @@ def student_dashboard():
 # --- 학생용 부스 목록 API ---
 @student_bp.route('/api/booth-list', methods=['POST'])
 def api_student_booth_list():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -521,7 +533,8 @@ def api_student_booth_list():
 # --- 대기열 신청 API ---
 @student_bp.route('/api/apply-to-queue', methods=['POST'])
 def api_apply_to_queue():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -566,7 +579,8 @@ def api_apply_to_queue():
 # --- 내 대기신청 목록 API ---
 @student_bp.route('/api/my-queue', methods=['POST'])
 def api_my_queue():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -606,7 +620,8 @@ def api_my_queue():
 # --- 대기 취소 API ---
 @student_bp.route('/api/cancel-queue', methods=['POST'])
 def api_cancel_queue():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -632,7 +647,8 @@ def api_cancel_queue():
 def checkin():
     booth = request.args.get('booth', '')
     if request.method == 'POST':
-        if not SUPABASE_AVAILABLE:
+        supabase = get_student_supabase()
+        if not supabase:
             return jsonify({'result': 'error', 'message': 'Supabase not configured'}), 500
         data = request.get_json()
         # 데이터를 Supabase에 저장
@@ -670,7 +686,8 @@ def certificate():
 # --- 학생 체험 기록 조회 API ---
 @student_bp.route('/api/records', methods=['POST'])
 def api_student_records():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -717,7 +734,8 @@ def api_student_records():
 # --- 확인증 발급 API (학생별 활동 내역 조회) ---
 @student_bp.route('/api/certificate', methods=['POST'])
 def api_certificate():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     data = request.get_json()
     school = data['school']
@@ -778,7 +796,8 @@ def api_certificate():
 # --- PDF 확인증 생성 API ---
 @student_bp.route('/api/generate-certificate-pdf', methods=['POST'])
 def api_generate_certificate_pdf():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'error': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -849,7 +868,8 @@ def api_generate_certificate_pdf():
 # --- 소감 수정 API ---
 @student_bp.route('/api/update-comment', methods=['POST'])
 def api_update_comment():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -872,7 +892,8 @@ def api_update_comment():
 # --- 체크인 기록 삭제 API ---
 @student_bp.route('/api/delete-record', methods=['POST'])
 def api_delete_record():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -892,7 +913,8 @@ def api_delete_record():
 # --- 새 체크인 기록 추가 API ---
 @student_bp.route('/api/add-record', methods=['POST'])
 def api_add_record():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -923,7 +945,8 @@ def api_add_record():
 # --- 학생 호출 API ---
 @student_bp.route('/api/call-student', methods=['POST'])
 def api_call_student():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()
@@ -978,7 +1001,8 @@ def api_call_student():
 # --- 학생 완료 처리 API ---
 @student_bp.route('/api/complete-student', methods=['POST'])
 def api_complete_student():
-    if not SUPABASE_AVAILABLE:
+    supabase = get_student_supabase()
+    if not supabase:
         return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
     
     data = request.get_json()

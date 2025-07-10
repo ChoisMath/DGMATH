@@ -10,6 +10,6 @@
 - 학생 활동 기록 관리
 """
 
-from .routes import student_bp, init_student_routes
+from .routes import student_bp
 
-__all__ = ['student_bp', 'init_student_routes']
+__all__ = ['student_bp']
