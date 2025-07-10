@@ -1,0 +1,9 @@
+Flask
+supabase
+pandas
+openpyxl
+qrcode
+Pillow
+reportlab
+solapi
+gunicorn

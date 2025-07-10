@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>부스 운영자 관리</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">부스 운영자 관리</h2>
+        <div class="admin-links">
+            <a href="/admin" class="neon-btn">관리자 대시보드</a>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="neon-alert">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        <!-- 새 부스 운영자 추가 -->
+        <div class="neon-info">
+            <h3>새 부스 운영자 추가</h3>
+            <form method="POST" action="/admin/add-booth-operator-account">
+                <label>운영자 ID <input type="text" name="operator_id" required></label><br>
+                <label>비밀번호 <input type="password" name="password" required></label><br>
+                <label>학교명 <input type="text" name="school" required></label><br>
+                <label>동아리명 <input type="text" name="club_name" required></label><br>
+                <label>부스 주제 <input type="text" name="booth_topic" required></label><br>
+                <label>휴대전화 <input type="tel" name="phone" required></label><br>
+                <label>이메일 <input type="email" name="email" required></label><br>
+                <button type="submit" class="neon-btn">계정 생성</button>
+            </form>
+        </div>
+        
+        <!-- 부스 운영자 목록 -->
+        <div class="data-summary">
+            <h3>부스 운영자 목록 (총 {{ operators|length }}명)</h3>
+            
+            {% if operators %}
+                <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                    <tr style="background: #181c2b; color: #00ffe7;">
+                        <th style="border: 1px solid #00ffe744; padding: 10px;">운영자 ID</th>
+                        <th style="border: 1px solid #00ffe744; padding: 10px;">학교</th>
+                        <th style="border: 1px solid #00ffe744; padding: 10px;">동아리명</th>
+                        <th style="border: 1px solid #00ffe744; padding: 10px;">부스 주제</th>
+                        <th style="border: 1px solid #00ffe744; padding: 10px;">연락처</th>
+                        <th style="border: 1px solid #00ffe744; padding: 10px;">상태</th>
+                        <th style="border: 1px solid #00ffe744; padding: 10px;">관리</th>
+                    </tr>
+                    {% for operator in operators %}
+                    <tr>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">{{ operator.operator_id }}</td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">{{ operator.school }}</td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">{{ operator.club_name }}</td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">{{ operator.booth_topic }}</td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">{{ operator.phone }}<br>{{ operator.email }}</td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">
+                            {% if operator.is_active %}
+                                <span style="color: #00ffe7;">활성</span>
+                            {% else %}
+                                <span style="color: #ff6b6b;">비활성</span>
+                            {% endif %}
+                        </td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">
+                            <button onclick="editOperator({{ operator.id }}, '{{ operator.operator_id }}', '{{ operator.school }}', '{{ operator.club_name }}', '{{ operator.booth_topic }}', '{{ operator.phone }}', '{{ operator.email }}', {{ operator.is_active|lower }})" class="neon-btn" style="font-size: 0.8em; padding: 5px 10px; margin: 2px;">수정</button>
+                            <form method="POST" action="/admin/delete-booth-operator-account/{{ operator.id }}" style="display: inline;">
+                                <button type="submit" onclick="return confirm('정말로 이 운영자를 삭제하시겠습니까?')" class="neon-btn" style="background: #ff6b6b; font-size: 0.8em; padding: 5px 10px; margin: 2px;">삭제</button>
+                            </form>
+                            <form method="POST" action="/admin/toggle-booth-operator-status/{{ operator.id }}" style="display: inline;">
+                                <button type="submit" class="neon-btn" style="background: #ffa500; font-size: 0.8em; padding: 5px 10px; margin: 2px;">
+                                    {% if operator.is_active %}비활성화{% else %}활성화{% endif %}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            {% else %}
+                <p>등록된 부스 운영자가 없습니다.</p>
+            {% endif %}
+        </div>
+        
+        <!-- 초기화 버튼 -->
+        <div style="margin-top: 20px; text-align: center;">
+            <form method="POST" action="/admin/clear-all-booth-operators" style="display: inline;">
+                <button type="submit" onclick="return confirm('모든 부스 운영자를 삭제하시겠습니까?')" class="neon-btn" style="background: #ff6b6b;">모든 운영자 삭제</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 수정 모달 -->
+    <div id="editModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h3>부스 운영자 수정</h3>
+            <form method="POST" action="" id="editForm">
+                <label>운영자 ID <input type="text" name="operator_id" id="editOperatorId" required></label><br>
+                <label>비밀번호 <input type="password" name="password" id="editPassword" placeholder="변경하지 않으려면 비워두세요"></label><br>
+                <label>학교명 <input type="text" name="school" id="editSchool" required></label><br>
+                <label>동아리명 <input type="text" name="club_name" id="editClubName" required></label><br>
+                <label>부스 주제 <input type="text" name="booth_topic" id="editBoothTopic" required></label><br>
+                <label>휴대전화 <input type="tel" name="phone" id="editPhone" required></label><br>
+                <label>이메일 <input type="email" name="email" id="editEmail" required></label><br>
+                <label>
+                    <input type="checkbox" name="is_active" id="editIsActive" value="true"> 활성 상태
+                </label><br>
+                <button type="submit" class="neon-btn">수정 완료</button>
+                <button type="button" onclick="closeEditModal()" class="neon-btn">취소</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function editOperator(id, operatorId, school, clubName, boothTopic, phone, email, isActive) {
+            document.getElementById('editOperatorId').value = operatorId;
+            document.getElementById('editPassword').value = '';
+            document.getElementById('editSchool').value = school;
+            document.getElementById('editClubName').value = clubName;
+            document.getElementById('editBoothTopic').value = boothTopic;
+            document.getElementById('editPhone').value = phone;
+            document.getElementById('editEmail').value = email;
+            document.getElementById('editIsActive').checked = isActive;
+            
+            document.getElementById('editForm').action = '/admin/edit-booth-operator-account/' + id;
+            document.getElementById('editModal').style.display = 'block';
+        }
+        
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+        
+        // 모달 외부 클릭시 닫기
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target === modal) {
+                closeEditModal();
+            }
+        }
+    </script>
+    
+    <style>
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: #23263a;
+            border: 2px solid #00ffe7;
+            border-radius: 8px;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #00ffe7;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: #fff;
+        }
+        
+        table {
+            font-size: 0.9em;
+        }
+        
+        th, td {
+            text-align: left;
+            vertical-align: top;
+        }
+        
+        th {
+            font-weight: bold;
+        }
+    </style>
+</body>
+</html>

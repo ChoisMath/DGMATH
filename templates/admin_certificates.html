@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>확인증 발급 관리</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">확인증 발급 관리</h2>
+        
+        <!-- 알림 메시지 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="neon-alert" style="margin-bottom: 20px; padding: 10px; border-radius: 4px; 
+                {% if category == 'success' %}background: rgba(0, 255, 231, 0.1); border: 1px solid #00ffe7; color: #00ffe7;
+                {% elif category == 'danger' %}background: rgba(255, 107, 107, 0.1); border: 1px solid #ff6b6b; color: #ff6b6b;
+                {% else %}background: rgba(255, 165, 0, 0.1); border: 1px solid #ffa500; color: #ffa500;{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- 행사명 설정 -->
+        <div class="event-settings" style="background: #181c2b; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #00ffe7;">
+            <h3 style="color: #00ffe7; margin-bottom: 15px;">행사 설정</h3>
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="color: #ccc; display: block; margin-bottom: 5px;">행사명</label>
+                    <input type="text" id="eventNameInput" value="{{ current_event_name }}" 
+                           style="width: 100%; padding: 10px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                </div>
+                <div style="align-self: end;">
+                    <button onclick="updateEventName()" class="neon-btn" style="padding: 10px 20px;">행사명 변경</button>
+                </div>
+            </div>
+            <small style="color: #888; margin-top: 10px; display: block;">
+                행사명은 확인증에 표시됩니다. 예: "대구수학축제 활동 확인서"
+            </small>
+        </div>
+
+        <!-- 관인 이미지 업로드 -->
+        <div class="seal-upload" style="background: #181c2b; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #00ffe7;">
+            <h3 style="color: #00ffe7; margin-bottom: 15px;">관인 이미지 설정</h3>
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="color: #ccc; display: block; margin-bottom: 5px;">관인 이미지 파일 (PNG, JPG)</label>
+                    <input type="file" id="sealImageInput" accept="image/*" 
+                           style="width: 100%; padding: 10px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                </div>
+                <div style="align-self: end;">
+                    <button onclick="uploadSealImage()" class="neon-btn" style="padding: 10px 20px;">관인 업로드</button>
+                </div>
+            </div>
+            <div style="margin-top: 15px; display: flex; gap: 10px; align-items: center;">
+                <div id="currentSeal" style="width: 60px; height: 60px; border: 1px solid #00ffe744; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: #2a2d3a;">
+                    <span style="color: #888; font-size: 0.8em;">로딩중...</span>
+                </div>
+                <div>
+                    <div id="sealStatus" style="color: #888; font-size: 0.9em; margin-bottom: 5px;">
+                        관인 상태를 확인중...
+                    </div>
+                    <small style="color: #888;">
+                        현재 관인 이미지입니다. 새로운 이미지를 업로드하면 커스텀 관인으로 변경됩니다.
+                    </small>
+                    <div style="margin-top: 8px;">
+                        <button onclick="resetToDefaultSeal()" id="resetSealBtn" style="background: #666; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; display: none;">
+                            기본 관인으로 되돌리기
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 통계 요약 -->
+        <div class="stats-section" style="background: #181c2b; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #00ffe7;">
+            <h3 style="color: #00ffe7; margin-bottom: 15px;">확인증 발급 현황</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div style="text-align: center;">
+                    <div style="font-size: 2em; color: #00ffe7; font-weight: bold;">{{ certificates|length }}</div>
+                    <div style="color: #ccc;">총 발급된 확인증</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 2em; color: #00ffe7; font-weight: bold;">{{ eligible_count }}</div>
+                    <div style="color: #ccc;">확인증 발급 대상</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 2em; color: #00ffe7; font-weight: bold;">{{ total_participants }}</div>
+                    <div style="color: #ccc;">전체 참여자</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 확인증 발급 대상 학생 -->
+        <div class="eligible-students-section" style="margin-bottom: 30px;">
+            <h3>확인증 발급 대상 학생 (3개 이상 부스 체험)</h3>
+            {% if eligible_students %}
+            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #00ffe744; border-radius: 8px; margin-bottom: 15px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="position: sticky; top: 0; background: #181c2b;">
+                        <tr style="border-bottom: 2px solid #00ffe7;">
+                            <th style="padding: 12px; text-align: left; color: #00ffe7;">학교</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">학년반번</th>
+                            <th style="padding: 12px; text-align: left; color: #00ffe7;">이름</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">체험부스수</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">발급상태</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in eligible_students %}
+                        <tr style="border-bottom: 1px solid #00ffe744;">
+                            <td style="padding: 12px; color: #fff;">{{ student.school }}</td>
+                            <td style="padding: 12px; text-align: center; color: #ccc;">{{ student.grade }}-{{ student.class }}-{{ student.number }}</td>
+                            <td style="padding: 12px; color: #fff; font-weight: bold;">{{ student.name }}</td>
+                            <td style="padding: 12px; text-align: center; color: #00ffe7; font-weight: bold;">{{ student.booth_count }}</td>
+                            <td style="padding: 12px; text-align: center;">
+                                {% if student.certificate_number %}
+                                    <span style="color: #28a745; font-weight: bold;">발급완료</span>
+                                    <br><small style="color: #ccc;">{{ student.certificate_number }}</small>
+                                {% else %}
+                                    <span style="color: #ffc107; font-weight: bold;">미발급</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 12px; text-align: center;">
+                                {% if student.certificate_number %}
+                                    <button onclick="viewCertificate('{{ student.certificate_number }}')" 
+                                        class="neon-btn" style="font-size: 0.8em; padding: 4px 8px; margin-right: 5px;">
+                                        보기
+                                    </button>
+                                    <button onclick="emailCertificate('{{ student.certificate_number }}', '{{ student.name }}')" 
+                                        style="background: #17a2b8; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
+                                        이메일
+                                    </button>
+                                {% else %}
+                                    <button onclick="issueCertificate('{{ student.school }}', {{ student.grade }}, {{ student.class }}, {{ student.number }}, '{{ student.name }}')" 
+                                        style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
+                                        발급
+                                    </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="neon-info">
+                <p>확인증 발급 대상 학생이 없습니다. (3개 이상 부스 체험 학생)</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 이미 발급된 확인증 목록 -->
+        <div class="certificates-section">
+            <h3>발급된 확인증 목록 ({{ certificates|length }}개)</h3>
+            {% if certificates %}
+            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #00ffe744; border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="position: sticky; top: 0; background: #181c2b;">
+                        <tr style="border-bottom: 2px solid #00ffe7;">
+                            <th style="padding: 12px; text-align: left; color: #00ffe7;">발급번호</th>
+                            <th style="padding: 12px; text-align: left; color: #00ffe7;">학생정보</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">체험부스수</th>
+                            <th style="padding: 12px; text-align: left; color: #00ffe7;">체험부스</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">발급일</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cert in certificates %}
+                        <tr style="border-bottom: 1px solid #00ffe744;">
+                            <td style="padding: 12px; color: #00ffe7; font-weight: bold; font-family: monospace;">{{ cert.certificate_number }}</td>
+                            <td style="padding: 12px; color: #fff;">
+                                <strong>{{ cert.name }}</strong><br>
+                                <small style="color: #ccc;">{{ cert.school }} {{ cert.grade }}-{{ cert.class }}-{{ cert.number }}</small>
+                            </td>
+                            <td style="padding: 12px; text-align: center; color: #00ffe7; font-weight: bold;">{{ cert.booth_count }}</td>
+                            <td style="padding: 12px; color: #ccc; font-size: 0.9em;">
+                                {% if cert.booth_names %}
+                                    {{ cert.booth_names|join(', ') }}
+                                {% else %}
+                                    정보 없음
+                                {% endif %}
+                            </td>
+                            <td style="padding: 12px; text-align: center; color: #ccc; font-size: 0.9em;">
+                                {{ cert.issued_at[:10] if cert.issued_at else '정보 없음' }}
+                            </td>
+                            <td style="padding: 12px; text-align: center;">
+                                <button onclick="viewCertificate('{{ cert.certificate_number }}')" 
+                                    class="neon-btn" style="font-size: 0.8em; padding: 4px 8px; margin-right: 5px;">
+                                    보기
+                                </button>
+                                <button onclick="printCertificate('{{ cert.certificate_number }}')" 
+                                    style="background: #6f42c1; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; margin-right: 5px;">
+                                    인쇄
+                                </button>
+                                <button onclick="emailCertificate('{{ cert.certificate_number }}', '{{ cert.name }}')" 
+                                    style="background: #17a2b8; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
+                                    이메일
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="neon-info">
+                <p>발급된 확인증이 없습니다.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 이메일 발송 모달 -->
+        <div id="emailModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #181c2b; padding: 30px; border-radius: 8px; border: 2px solid #00ffe7; width: 90%; max-width: 500px;">
+                <h3 style="color: #00ffe7; margin-bottom: 20px;">확인증 이메일 발송</h3>
+                <form id="emailForm">
+                    <div style="margin-bottom: 15px;">
+                        <label style="color: #ccc; display: block; margin-bottom: 5px;">발급번호</label>
+                        <input type="text" id="emailCertNumber" readonly style="width: 100%; padding: 10px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="color: #ccc; display: block; margin-bottom: 5px;">학생 이름</label>
+                        <input type="text" id="emailStudentName" readonly style="width: 100%; padding: 10px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="color: #ccc; display: block; margin-bottom: 5px;">받는 사람 이메일</label>
+                        <input type="email" id="emailAddress" required placeholder="example@email.com" style="width: 100%; padding: 10px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label style="color: #ccc; display: block; margin-bottom: 5px;">메시지 (선택사항)</label>
+                        <textarea id="emailMessage" placeholder="추가 메시지를 입력하세요..." style="width: 100%; padding: 10px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px; height: 80px; resize: vertical;"></textarea>
+                    </div>
+                    <div style="text-align: right;">
+                        <button type="button" onclick="closeEmailModal()" style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 10px;">취소</button>
+                        <button type="submit" style="background: #17a2b8; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">이메일 발송</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="admin-links" style="margin-top: 20px;">
+            <a href="/admin" class="neon-btn">관리자 페이지로 돌아가기</a>
+        </div>
+    </div>
+
+    <script>
+        async function updateEventName() {
+            const eventName = document.getElementById('eventNameInput').value.trim();
+            
+            if (!eventName) {
+                alert('행사명을 입력해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/update-event-name', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        event_name: eventName
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert(data.message);
+                } else {
+                    alert('오류: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('행사명 변경 중 오류가 발생했습니다.');
+            }
+        }
+        
+        async function uploadSealImage() {
+            const fileInput = document.getElementById('sealImageInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('관인 이미지 파일을 선택해주세요.');
+                return;
+            }
+            
+            // 파일 크기 체크 (5MB 제한)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('파일 크기는 5MB 이하여야 합니다.');
+                return;
+            }
+            
+            // 이미지 파일 체크
+            if (!file.type.startsWith('image/')) {
+                alert('이미지 파일만 업로드 가능합니다.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('seal_image', file);
+            
+            try {
+                const response = await fetch('/admin/upload-seal', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert(data.message);
+                    // 현재 관인 이미지 업데이트
+                    updateCurrentSealDisplay(data.seal_url, data.seal_type);
+                    fileInput.value = '';
+                } else {
+                    alert('오류: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('관인 업로드 중 오류가 발생했습니다.');
+            }
+        }
+        
+        function updateCurrentSealDisplay(sealUrl, sealType = 'unknown') {
+            const currentSealDiv = document.getElementById('currentSeal');
+            const sealStatusDiv = document.getElementById('sealStatus');
+            const resetBtn = document.getElementById('resetSealBtn');
+            
+            if (sealUrl) {
+                currentSealDiv.innerHTML = `<img src="${sealUrl}" style="width: 100%; height: 100%; object-fit: contain;" alt="관인">`;
+                
+                if (sealType === 'custom') {
+                    sealStatusDiv.innerHTML = '<span style="color: #00ffe7;">커스텀 관인 사용중</span>';
+                    sealStatusDiv.style.color = '#00ffe7';
+                    resetBtn.style.display = 'inline-block';
+                } else if (sealType === 'default') {
+                    sealStatusDiv.innerHTML = '<span style="color: #28a745;">기본 관인 사용중 (image/GanIn.png)</span>';
+                    sealStatusDiv.style.color = '#28a745';
+                    resetBtn.style.display = 'none';
+                } else {
+                    sealStatusDiv.innerHTML = '<span style="color: #ffc107;">관인 사용중</span>';
+                    sealStatusDiv.style.color = '#ffc107';
+                    resetBtn.style.display = 'none';
+                }
+            } else {
+                currentSealDiv.innerHTML = '<span style="color: #888; font-size: 0.8em;">관인 없음</span>';
+                sealStatusDiv.innerHTML = '<span style="color: #ff6b6b;">관인이 설정되지 않았습니다.</span>';
+                sealStatusDiv.style.color = '#ff6b6b';
+                resetBtn.style.display = 'none';
+            }
+        }
+        
+        async function resetToDefaultSeal() {
+            if (!confirm('커스텀 관인을 삭제하고 기본 관인으로 되돌리시겠습니까?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/reset-seal', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert(data.message);
+                    updateCurrentSealDisplay(data.seal_url, data.seal_type);
+                } else {
+                    alert('오류: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('관인 리셋 중 오류가 발생했습니다.');
+            }
+        }
+        
+        // 페이지 로드시 현재 관인 이미지 표시
+        window.addEventListener('load', function() {
+            fetch('/admin/get-current-seal')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.ok) {
+                        updateCurrentSealDisplay(data.seal_url, data.seal_type);
+                    }
+                })
+                .catch(error => console.error('Error loading current seal:', error));
+        });
+        
+        async function issueCertificate(school, grade, class_, number, name) {
+            if (!confirm(`${name} 학생에게 확인증을 발급하시겠습니까?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/issue-certificate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        school: school,
+                        grade: grade,
+                        class: class_,
+                        number: number,
+                        name: name
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert(`확인증이 발급되었습니다.\n발급번호: ${data.certificate_number}`);
+                    location.reload();
+                } else {
+                    alert('확인증 발급 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('확인증 발급 중 오류가 발생했습니다.');
+            }
+        }
+        
+        function viewCertificate(certificateNumber) {
+            window.open(`/admin/certificate-view/${certificateNumber}`, '_blank', 'width=800,height=600');
+        }
+        
+        function printCertificate(certificateNumber) {
+            // PDF를 새 창에서 열면 브라우저의 PDF 뷰어에서 인쇄 가능
+            window.open(`/admin/certificate-view/${certificateNumber}`, '_blank');
+        }
+        
+        function emailCertificate(certificateNumber, studentName) {
+            document.getElementById('emailCertNumber').value = certificateNumber;
+            document.getElementById('emailStudentName').value = studentName;
+            document.getElementById('emailAddress').value = '';
+            document.getElementById('emailMessage').value = '';
+            document.getElementById('emailModal').style.display = 'block';
+        }
+        
+        function closeEmailModal() {
+            document.getElementById('emailModal').style.display = 'none';
+        }
+        
+        document.getElementById('emailForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const certificateNumber = document.getElementById('emailCertNumber').value;
+            const studentName = document.getElementById('emailStudentName').value;
+            const emailAddress = document.getElementById('emailAddress').value;
+            const message = document.getElementById('emailMessage').value;
+            
+            if (!emailAddress) {
+                alert('이메일 주소를 입력해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/email-certificate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        certificate_number: certificateNumber,
+                        student_name: studentName,
+                        email_address: emailAddress,
+                        message: message
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert(`${studentName} 학생의 확인증이 ${emailAddress}로 발송되었습니다.`);
+                    closeEmailModal();
+                } else {
+                    alert('이메일 발송 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('이메일 발송 중 오류가 발생했습니다.');
+            }
+        });
+        
+        // 모달 외부 클릭시 닫기
+        document.getElementById('emailModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEmailModal();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>부스 운영자 로그인</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">부스 운영자 로그인</h2>
+        
+        <form id="loginForm">
+            <label>아이디 <input type="text" id="operator_id" placeholder="등록한 아이디를 입력하세요" required></label><br>
+            <label>비밀번호 <input type="password" id="password" placeholder="비밀번호를 입력하세요" required></label><br>
+            
+            <button type="submit" class="neon-btn" style="margin-top: 20px;">로그인</button>
+        </form>
+        
+        <div style="margin-top: 30px; text-align: center; border-top: 1px solid #00ffe744; padding-top: 20px;">
+            <h3 style="color: #00ffe7;">계정이 없나요?</h3>
+            <a href="/booth-operator-register" class="neon-link">부스 운영자 계정 생성</a>
+        </div>
+        
+        <div style="margin-top: 20px; text-align: center;">
+            <a href="/student-login" class="neon-link">학생 로그인</a>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('loginForm').onsubmit = async function(e) {
+            e.preventDefault();
+            
+            const operatorId = document.getElementById('operator_id').value;
+            const password = document.getElementById('password').value;
+            
+            if (!operatorId || !password) {
+                alert('아이디와 비밀번호를 모두 입력해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/booth-operator-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        operator_id: operatorId,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    // 로그인 성공시 운영자 정보를 세션에 저장
+                    sessionStorage.setItem('boothOperatorInfo', JSON.stringify(data.operator));
+                    
+                    alert('로그인되었습니다!');
+                    window.location.href = '/booth-operator-dashboard';
+                } else {
+                    alert('로그인 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('로그인 중 오류가 발생했습니다.');
+            }
+        };
+    </script>
+</body>
+</html>

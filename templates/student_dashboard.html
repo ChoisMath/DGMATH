@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>학생 대시보드</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">학생 대시보드</h2>
+        
+        <!-- 학생 정보 표시 -->
+        <div id="studentInfo" class="neon-info">
+            <p><strong>이름:</strong> <span id="studentName"></span></p>
+            <p><strong>학교:</strong> <span id="studentSchool"></span></p>
+            <p><strong>학급:</strong> <span id="studentGrade"></span>학년 <span id="studentClass"></span>반 <span id="studentNumber"></span>번</p>
+        </div>
+        
+        <!-- 메뉴 -->
+        <div class="admin-menu">
+            <button class="neon-btn" onclick="showSection('booth-list')">부스 목록</button>
+            <button class="neon-btn" onclick="showSection('my-queue')">내 대기신청</button>
+            <button class="neon-btn" onclick="showSection('checkin-history')">체크인 기록</button>
+            <button class="neon-btn" onclick="showSection('certificate')">확인증 발급</button>
+            <button class="neon-btn" onclick="logout()">로그아웃</button>
+        </div>
+        
+        <!-- 부스 목록 섹션 -->
+        <div id="booth-list" class="section">
+            <h3 style="color: #00ffe7;">부스 목록</h3>
+            <div id="boothListContainer"></div>
+        </div>
+        
+        <!-- 내 대기신청 섹션 -->
+        <div id="my-queue" class="section" style="display: none;">
+            <h3 style="color: #00ffe7;">내 대기신청</h3>
+            <div id="myQueueContainer"></div>
+        </div>
+        
+        <!-- 체크인 기록 섹션 -->
+        <div id="checkin-history" class="section" style="display: none;">
+            <h3 style="color: #00ffe7;">체크인 기록</h3>
+            <div id="checkinHistoryContainer"></div>
+        </div>
+        
+        <!-- 확인증 발급 섹션 -->
+        <div id="certificate" class="section" style="display: none;">
+            <h3 style="color: #00ffe7;">확인증 발급</h3>
+            <div id="certificateContainer"></div>
+        </div>
+    </div>
+    
+    <!-- 부스 상세 모달 -->
+    <div id="boothModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3 id="modalBoothName"></h3>
+            <p><strong>장소:</strong> <span id="modalBoothLocation"></span></p>
+            <p><strong>설명:</strong> <span id="modalBoothDescription"></span></p>
+            <div id="modalBoothDetails"></div>
+            <div id="modalBoothPdf"></div>
+            <div id="modalBoothQueue"></div>
+            <div id="modalBoothActions"></div>
+        </div>
+    </div>
+    
+    <script>
+        let currentStudent = null;
+        let allBooths = [];
+        
+        // 페이지 로드시 학생 정보 확인
+        document.addEventListener('DOMContentLoaded', function() {
+            const studentInfo = sessionStorage.getItem('studentInfo');
+            if (!studentInfo) {
+                alert('로그인이 필요합니다.');
+                window.location.href = '/student-login';
+                return;
+            }
+            
+            currentStudent = JSON.parse(studentInfo);
+            
+            // 학생 정보 표시
+            document.getElementById('studentName').textContent = currentStudent.name;
+            document.getElementById('studentSchool').textContent = currentStudent.school;
+            document.getElementById('studentGrade').textContent = currentStudent.grade;
+            document.getElementById('studentClass').textContent = currentStudent.class;
+            document.getElementById('studentNumber').textContent = currentStudent.number;
+            
+            // 초기 섹션 표시
+            showSection('booth-list');
+        });
+        
+        // 섹션 표시
+        function showSection(sectionId) {
+            // 모든 섹션 숨기기
+            document.querySelectorAll('.section').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // 선택된 섹션 표시
+            document.getElementById(sectionId).style.display = 'block';
+            
+            // 섹션별 데이터 로드
+            switch(sectionId) {
+                case 'booth-list':
+                    loadBoothList();
+                    break;
+                case 'my-queue':
+                    loadMyQueue();
+                    break;
+                case 'checkin-history':
+                    loadCheckinHistory();
+                    break;
+                case 'certificate':
+                    loadCertificate();
+                    break;
+            }
+        }
+        
+        // 부스 목록 로드
+        async function loadBoothList() {
+            try {
+                const response = await fetch('/api/student-booth-list', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        student_id: currentStudent.id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    allBooths = data.booths;
+                    displayBoothList(data.booths);
+                } else {
+                    document.getElementById('boothListContainer').innerHTML = '<div class="neon-alert">부스 목록을 불러오는데 실패했습니다.</div>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('boothListContainer').innerHTML = '<div class="neon-alert">오류가 발생했습니다.</div>';
+            }
+        }
+        
+        // 부스 목록 표시
+        function displayBoothList(booths) {
+            const container = document.getElementById('boothListContainer');
+            
+            if (booths.length === 0) {
+                container.innerHTML = '<div class="neon-info">등록된 부스가 없습니다.</div>';
+                return;
+            }
+            
+            let html = '';
+            booths.forEach(booth => {
+                const queueCount = booth.queue_count || 0;
+                const statusText = booth.queue_status || '대기가능';
+                const statusColor = queueCount === 0 ? '#00ffe7' : queueCount < 10 ? '#ffa500' : '#ff6b6b';
+                
+                html += `
+                    <div class="booth-card">
+                        <h4>${booth.name}</h4>
+                        <p><strong>장소:</strong> ${booth.location || '미정'}</p>
+                        <p><strong>설명:</strong> ${booth.description || '설명 없음'}</p>
+                        <p><strong>대기 인원:</strong> <span style="color: ${statusColor}">${queueCount}명</span></p>
+                        <div class="booth-actions">
+                            <button onclick="viewBoothDetails(${booth.id})" class="neon-btn">상세보기</button>
+                            <button onclick="applyToQueue(${booth.id})" class="neon-btn">대기 신청</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 부스 상세 보기
+        function viewBoothDetails(boothId) {
+            const booth = allBooths.find(b => b.id === boothId);
+            if (!booth) return;
+            
+            document.getElementById('modalBoothName').textContent = booth.name;
+            document.getElementById('modalBoothLocation').textContent = booth.location || '미정';
+            document.getElementById('modalBoothDescription').textContent = booth.description || '설명 없음';
+            
+            // 상세 설명
+            const detailsDiv = document.getElementById('modalBoothDetails');
+            detailsDiv.innerHTML = '';
+            
+            // PDF 파일
+            const pdfDiv = document.getElementById('modalBoothPdf');
+            if (booth.pdf_file_path) {
+                pdfDiv.innerHTML = `<p><strong>상세 자료:</strong> <a href="/${booth.pdf_file_path}" target="_blank" class="neon-link">PDF 보기</a></p>`;
+            } else {
+                pdfDiv.innerHTML = '';
+            }
+            
+            // 대기열 정보
+            const queueDiv = document.getElementById('modalBoothQueue');
+            const queueCount = booth.queue_count || 0;
+            queueDiv.innerHTML = `<p><strong>현재 대기 인원:</strong> ${queueCount}명</p>`;
+            
+            // 액션 버튼
+            const actionsDiv = document.getElementById('modalBoothActions');
+            actionsDiv.innerHTML = `
+                <button onclick="applyToQueue(${booth.id})" class="neon-btn">대기 신청</button>
+                <button onclick="closeModal()" class="neon-btn">닫기</button>
+            `;
+            
+            // 모달 표시
+            document.getElementById('boothModal').style.display = 'block';
+        }
+        
+        // 모달 닫기
+        function closeModal() {
+            document.getElementById('boothModal').style.display = 'none';
+        }
+        
+        // 대기열 신청
+        async function applyToQueue(boothId) {
+            try {
+                const response = await fetch('/api/apply-to-queue', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        booth_id: boothId,
+                        student_id: currentStudent.id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert(`대기 신청이 완료되었습니다! 대기 순번: ${data.queue_position}번`);
+                    closeModal();
+                    loadBoothList(); // 부스 목록 새로고침
+                } else {
+                    alert('대기 신청 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('대기 신청 중 오류가 발생했습니다.');
+            }
+        }
+        
+        // 내 대기신청 로드
+        async function loadMyQueue() {
+            try {
+                const response = await fetch('/api/my-queue', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        student_id: currentStudent.id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    displayMyQueue(data.queue);
+                } else {
+                    document.getElementById('myQueueContainer').innerHTML = '<div class="neon-alert">대기신청 목록을 불러오는데 실패했습니다.</div>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('myQueueContainer').innerHTML = '<div class="neon-alert">오류가 발생했습니다.</div>';
+            }
+        }
+        
+        // 내 대기신청 표시
+        function displayMyQueue(queue) {
+            const container = document.getElementById('myQueueContainer');
+            
+            if (queue.length === 0) {
+                container.innerHTML = '<div class="neon-info">대기 신청한 부스가 없습니다.</div>';
+                return;
+            }
+            
+            let html = '';
+            queue.forEach(entry => {
+                const statusText = entry.status === 'waiting' ? '대기중' : 
+                                 entry.status === 'called' ? '호출됨' : '완료';
+                const statusColor = entry.status === 'waiting' ? '#00ffe7' : 
+                                  entry.status === 'called' ? '#ffa500' : '#00ff00';
+                
+                html += `
+                    <div class="queue-card">
+                        <h4>${entry.booth_name}</h4>
+                        <p><strong>장소:</strong> ${entry.booth_location || '미정'}</p>
+                        <p><strong>대기 순번:</strong> ${entry.queue_position}번</p>
+                        <p><strong>상태:</strong> <span style="color: ${statusColor}">${statusText}</span></p>
+                        <p><strong>신청 시간:</strong> ${new Date(entry.applied_at).toLocaleString()}</p>
+                        ${entry.status === 'waiting' ? `
+                            <button onclick="cancelQueue(${entry.id})" class="neon-btn" style="background: #ff6b6b;">신청 취소</button>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 대기 취소
+        async function cancelQueue(entryId) {
+            if (!confirm('대기 신청을 취소하시겠습니까?')) return;
+            
+            try {
+                const response = await fetch('/api/cancel-queue', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        entry_id: entryId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert('대기 신청이 취소되었습니다.');
+                    loadMyQueue(); // 목록 새로고침
+                } else {
+                    alert('취소 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('취소 중 오류가 발생했습니다.');
+            }
+        }
+        
+        // 체크인 기록 로드
+        async function loadCheckinHistory() {
+            try {
+                const response = await fetch('/api/student-records', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(currentStudent)
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    displayCheckinHistory(data.records);
+                } else {
+                    document.getElementById('checkinHistoryContainer').innerHTML = '<div class="neon-alert">체크인 기록을 불러오는데 실패했습니다.</div>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('checkinHistoryContainer').innerHTML = '<div class="neon-alert">오류가 발생했습니다.</div>';
+            }
+        }
+        
+        // 체크인 기록 표시
+        function displayCheckinHistory(records) {
+            const container = document.getElementById('checkinHistoryContainer');
+            
+            if (records.length === 0) {
+                container.innerHTML = '<div class="neon-info">체크인 기록이 없습니다.</div>';
+                return;
+            }
+            
+            let html = '';
+            records.forEach(record => {
+                html += `
+                    <div class="checkin-card">
+                        <h4>${record.booth}</h4>
+                        <p><strong>소감:</strong> ${record.comment || '소감 없음'}</p>
+                        <p><strong>체크인 시간:</strong> ${new Date(record.created_at).toLocaleString()}</p>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 확인증 정보 로드
+        async function loadCertificate() {
+            try {
+                const response = await fetch('/api/student-records', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(currentStudent)
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    displayCertificate(data);
+                } else {
+                    document.getElementById('certificateContainer').innerHTML = '<div class="neon-alert">확인증 정보를 불러오는데 실패했습니다.</div>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('certificateContainer').innerHTML = '<div class="neon-alert">오류가 발생했습니다.</div>';
+            }
+        }
+        
+        // 확인증 정보 표시
+        function displayCertificate(data) {
+            const container = document.getElementById('certificateContainer');
+            
+            if (data.can_get_certificate) {
+                container.innerHTML = `
+                    <div class="neon-cert">
+                        <h4>확인증 발급 가능</h4>
+                        <p>체험한 부스 수: ${data.booth_count}개</p>
+                        ${data.certificate_number ? `
+                            <p>발급번호: ${data.certificate_number}</p>
+                            <button onclick="downloadCertificate()" class="neon-btn">확인증 다운로드</button>
+                        ` : `
+                            <button onclick="issueCertificate()" class="neon-btn">확인증 발급</button>
+                        `}
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="neon-info">
+                        <h4>확인증 발급 불가</h4>
+                        <p>체험한 부스 수: ${data.booth_count}개</p>
+                        <p>확인증 발급을 위해서는 3개 이상의 부스를 체험해야 합니다.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // 확인증 발급
+        async function issueCertificate() {
+            try {
+                const response = await fetch('/api/certificate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(currentStudent)
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert('확인증이 발급되었습니다!');
+                    loadCertificate(); // 확인증 정보 새로고침
+                } else {
+                    alert('확인증 발급 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('확인증 발급 중 오류가 발생했습니다.');
+            }
+        }
+        
+        // 확인증 다운로드
+        async function downloadCertificate() {
+            try {
+                const response = await fetch('/api/generate-certificate-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(currentStudent)
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${currentStudent.name}_활동확인서.pdf`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    alert('확인증 다운로드 실패');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('확인증 다운로드 중 오류가 발생했습니다.');
+            }
+        }
+        
+        // 로그아웃
+        function logout() {
+            sessionStorage.removeItem('studentInfo');
+            window.location.href = '/student-login';
+        }
+        
+        // CSS 스타일 추가
+        const style = document.createElement('style');
+        style.textContent = `
+            .section {
+                margin-top: 20px;
+                padding: 20px;
+                border: 1px solid #00ffe744;
+                border-radius: 8px;
+                background: #181c2b;
+            }
+            
+            .booth-card, .queue-card, .checkin-card {
+                background: #23263a;
+                border: 1px solid #00ffe744;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+            
+            .booth-card h4, .queue-card h4, .checkin-card h4 {
+                color: #00ffe7;
+                margin-top: 0;
+                margin-bottom: 10px;
+            }
+            
+            .booth-actions {
+                margin-top: 10px;
+            }
+            
+            .booth-actions button {
+                margin-right: 10px;
+                margin-bottom: 5px;
+            }
+            
+            .modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 1000;
+            }
+            
+            .modal-content {
+                background: #23263a;
+                border: 2px solid #00ffe7;
+                border-radius: 8px;
+                max-width: 500px;
+                margin: 50px auto;
+                padding: 20px;
+                position: relative;
+            }
+            
+            .close {
+                position: absolute;
+                top: 10px;
+                right: 20px;
+                font-size: 28px;
+                font-weight: bold;
+                color: #00ffe7;
+                cursor: pointer;
+            }
+            
+            .close:hover {
+                color: #fff;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

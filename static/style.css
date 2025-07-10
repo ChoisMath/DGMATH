@@ -1,0 +1,135 @@
+body {
+    background: #181c2b;
+    color: #fff;
+    font-family: 'Noto Sans KR', sans-serif;
+    margin: 0;
+    min-height: 100vh;
+}
+.container {
+    max-width: 400px;
+    margin: 40px auto;
+    padding: 32px 24px;
+    border-radius: 18px;
+    box-shadow: 0 0 24px #00ffe7, 0 0 4px #fff2;
+    background: #23263a;
+}
+.neon-box {
+    border: 2px solid #00ffe7;
+    box-shadow: 0 0 16px #00ffe7, 0 0 2px #fff2;
+}
+.neon-text {
+    color: #fff;
+    text-shadow: 0 0 8px #00ffe7, 0 0 2px #fff;
+    font-size: 2em;
+    margin-bottom: 24px;
+    text-align: center;
+}
+.neon-btn {
+    background: #00ffe7;
+    color: #181c2b;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 24px;
+    font-size: 1.1em;
+    font-weight: bold;
+    box-shadow: 0 0 8px #00ffe7, 0 0 2px #fff;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: background 0.2s;
+}
+.neon-btn:hover {
+    background: #00bfff;
+    color: #fff;
+}
+input, textarea {
+    border: 1.5px solid #00ffe7;
+    border-radius: 6px;
+    background: #23263a;
+    color: #fff;
+    padding: 6px 10px;
+    margin: 6px 0 12px 0;
+    width: 90%;
+    font-size: 1em;
+    box-shadow: 0 0 4px #00ffe744;
+}
+.neon-link {
+    color: #00ffe7;
+    text-shadow: 0 0 4px #00ffe7, 0 0 1px #fff;
+    font-weight: bold;
+    text-decoration: none;
+}
+.neon-link:hover {
+    color: #fff;
+    text-shadow: 0 0 8px #00ffe7, 0 0 2px #fff;
+}
+.neon-info {
+    background: #181c2b;
+    border-left: 4px solid #00ffe7;
+    padding: 10px 16px;
+    margin-bottom: 18px;
+    font-size: 1.05em;
+    box-shadow: 0 0 8px #00ffe744;
+}
+.neon-cert {
+    margin: 18px 0 0 0;
+    padding: 16px 10px;
+    border: 2px dashed #00ffe7;
+    border-radius: 10px;
+    background: #23263a;
+    box-shadow: 0 0 12px #00ffe7, 0 0 2px #fff2;
+    text-align: center;
+}
+.neon-alert {
+    color: #ff00c8;
+    background: #2a1a2a;
+    border-left: 4px solid #ff00c8;
+    padding: 8px 14px;
+    margin-bottom: 16px;
+    font-weight: bold;
+    box-shadow: 0 0 8px #ff00c888;
+}
+
+/* 관리자 대시보드 스타일 */
+.admin-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin: 24px 0;
+}
+
+.admin-menu .neon-btn {
+    width: 100%;
+    max-width: 300px;
+    text-align: center;
+    display: block;
+}
+
+.data-summary {
+    margin-top: 24px;
+    padding: 16px;
+    background: #181c2b;
+    border-radius: 8px;
+    border-left: 4px solid #00ffe7;
+}
+
+.data-summary h3 {
+    color: #00ffe7;
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+
+.data-summary ul {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.data-summary li {
+    margin: 4px 0;
+}
+
+.admin-links {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+} 

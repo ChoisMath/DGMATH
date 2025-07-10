@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>부스 관리</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">부스 관리</h2>
+        
+        <div class="admin-menu">
+            <a href="/admin/qr-generator" class="neon-btn">새 부스 QR 생성</a>
+        </div>
+
+        {% if booths %}
+        <div class="booths-list">
+            <h3>등록된 부스 목록</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+                <thead>
+                    <tr style="background: #181c2b; border-bottom: 2px solid #00ffe7;">
+                        <th style="padding: 12px; text-align: left; color: #00ffe7;">부스명</th>
+                        <th style="padding: 12px; text-align: left; color: #00ffe7;">설명</th>
+                        <th style="padding: 12px; text-align: left; color: #00ffe7;">운영자 교사명</th>
+                        <th style="padding: 12px; text-align: center; color: #00ffe7;">상태</th>
+                        <th style="padding: 12px; text-align: center; color: #00ffe7;">QR코드</th>
+                        <th style="padding: 12px; text-align: center; color: #00ffe7;">생성일</th>
+                        <th style="padding: 12px; text-align: center; color: #00ffe7;">관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booth in booths %}
+                    <tr style="border-bottom: 1px solid #00ffe744;">
+                        <td style="padding: 12px; color: #fff; font-weight: bold;"><a href="/admin/edit-booth/{{ booth.id }}" style="color: #00ffe7; text-decoration: none;">{{ booth.name }}</a></td>
+                        <td style="padding: 12px; color: #ccc;">{{ booth.description or '설명 없음' }}</td>
+                        <td style="padding: 12px; color: #ccc;">{{ booth.operator_club_name }}</td>
+                        <td style="padding: 12px; text-align: center;">
+                            {% if booth.is_active %}
+                                <span style="color: #00ffe7; font-weight: bold;">활성</span>
+                            {% else %}
+                                <span style="color: #ff6b6b;">비활성</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px; text-align: center;">
+                            {% if booth.qr_file_path %}
+                                <a href="/admin/download-qr/{{ booth.name }}" class="neon-btn" style="font-size: 0.8em; padding: 4px 8px;">QR 다운로드</a>
+                            {% else %}
+                                <span style="color: #666;">QR 없음</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 12px; text-align: center; color: #ccc; font-size: 0.9em;">
+                            {{ booth.created_at[:10] }}
+                        </td>
+                        <td style="padding: 12px; text-align: center;">
+                            <form method="POST" action="/admin/delete-booth/{{ booth.id }}" style="display: inline-block; margin: 0;">
+                                <button type="submit" onclick="return confirm('정말로 부스 \"{{ booth.name }}\"을(를) 삭제하시겠습니까?\\n\\n삭제된 부스는 복구할 수 없습니다.')" 
+                                    style="background: #ff4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold;">
+                                    삭제
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="neon-info">
+            <p>등록된 부스가 없습니다. QR 생성기를 통해 새 부스를 생성하세요.</p>
+        </div>
+        {% endif %}
+
+        <div class="admin-links">
+            <a href="/admin" class="neon-btn">관리자 페이지로 돌아가기</a>
+        </div>
+        
+        <!-- 부스 전체 초기화 버튼 (우측하단) -->
+        <div style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+            <form method="POST" action="/admin/clear-all-booths" style="margin: 0;">
+                <button type="submit" onclick="return confirm('정말로 모든 부스를 초기화하시겠습니까?\\n\\n이 작업은 되돌릴 수 없습니다.\\n\\n- 모든 부스 데이터가 삭제됩니다.\\n- 모든 QR 코드 파일이 삭제됩니다.\\n\\n계속하시겠습니까?')" 
+                    style="background: #ff3333; color: white; border: none; padding: 15px 25px; border-radius: 8px; cursor: pointer; font-size: 1.1em; font-weight: bold; box-shadow: 0 4px 15px rgba(255, 51, 51, 0.3); transition: background 0.3s ease;"
+                    onmouseover="this.style.background='#ff1111'"
+                    onmouseout="this.style.background='#ff3333'">
+                    🗑️ 전체 초기화
+                </button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

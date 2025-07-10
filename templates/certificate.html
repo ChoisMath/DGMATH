@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>참여 확인증 발급</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .record-item {
+            background: #181c2b;
+            border-left: 4px solid #00ffe7;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+        .record-booth {
+            color: #00ffe7;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .record-comment {
+            color: #ccc;
+            margin: 8px 0;
+            line-height: 1.4;
+        }
+        .record-time {
+            color: #888;
+            font-size: 0.85em;
+        }
+        .edit-btn {
+            background: #00ffe744;
+            border: 1px solid #00ffe7;
+            color: #00ffe7;
+            padding: 4px 8px;
+            font-size: 0.8em;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .edit-btn:hover {
+            background: #00ffe7;
+            color: #181c2b;
+        }
+        .comment-edit {
+            width: 100%;
+            background: #23263a;
+            border: 1px solid #00ffe7;
+            color: #fff;
+            padding: 8px;
+            border-radius: 4px;
+            margin: 8px 0;
+            resize: vertical;
+            min-height: 60px;
+        }
+        .save-btn, .cancel-btn {
+            padding: 6px 12px;
+            margin: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .save-btn {
+            background: #00ffe7;
+            color: #181c2b;
+            border: none;
+        }
+        .cancel-btn {
+            background: transparent;
+            color: #00ffe7;
+            border: 1px solid #00ffe7;
+        }
+        .certificate-content {
+            background: white;
+            color: black;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            border: 3px solid #00ffe7;
+        }
+        .cert-title {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .cert-number {
+            font-size: 0.9em;
+            color: #666;
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .cert-student {
+            font-size: 1.2em;
+            margin: 20px 0;
+            color: #333;
+            text-align: left;
+        }
+        .cert-student-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .cert-booths {
+            margin: 20px 0;
+        }
+        .cert-booth-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .cert-booth-table th {
+            background: #e9ecef;
+            padding: 10px;
+            text-align: left;
+            border: 1px solid #dee2e6;
+            font-weight: bold;
+        }
+        .cert-booth-table td {
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            vertical-align: top;
+        }
+        .cert-confirmation {
+            margin: 30px 0;
+            text-align: center;
+            line-height: 1.8;
+            color: #333;
+        }
+        .cert-footer {
+            margin-top: 30px;
+            color: #666;
+            font-size: 0.9em;
+            text-align: center;
+        }
+        .cert-seal {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .cert-seal img {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <div class="container neon-box" id="certBox">
+        <h2 class="neon-text">나의 체험 기록</h2>
+        
+        <!-- 학생 정보 표시 -->
+        <div id="studentInfo" class="neon-info"></div>
+        
+        <!-- 체험 기록 목록 -->
+        <div id="recordsList" style="margin-top: 20px;"></div>
+        
+        <!-- 인증서 영역 -->
+        <div id="certificateArea" style="margin-top: 30px;"></div>
+        
+        <div style="margin-top:20px; text-align: center;">
+            <button onclick="logout()" style="background: #ff6b6b; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">로그아웃</button>
+            <a href="/student-login" class="neon-link">다른 계정으로 로그인</a>
+        </div>
+    </div>
+
+    <script>
+    // 로그인된 학생 정보 불러오기
+    const studentInfo = sessionStorage.getItem('studentInfo');
+    let info = {};
+
+    if(!studentInfo) {
+        document.getElementById('studentInfo').innerHTML = '<span style="color:red">로그인이 필요합니다!</span>';
+        document.getElementById('recordsList').innerHTML = '<div class="neon-info" style="text-align:center; margin-top:20px;"><a href="/student-login" class="neon-link">로그인하기</a></div>';
+    } else {
+        info = JSON.parse(studentInfo);
+        // 학생 정보 표시
+        document.getElementById('studentInfo').innerHTML = 
+            `<div style='text-align:center; font-size:1.2em;'>${info.school} ${info.grade}학년 ${info.class}반 ${info.number}번 <strong>${info.name}</strong></div>`;
+        
+        // 체험 기록 로드
+        loadStudentRecords();
+    }
+
+    function loadStudentRecords() {
+        fetch('/api/student-records', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(info)
+        }).then(r=>r.json()).then(data=>{
+            if(data.ok) {
+                displayRecords(data.records, data.booth_count, data.can_get_certificate);
+                if(data.can_get_certificate) {
+                    loadCertificate();
+                }
+            }
+        });
+    }
+
+    function displayRecords(records, boothCount, canGetCert) {
+        let html = `<h3>체험 기록 (총 ${boothCount}개 부스)</h3>`;
+        
+        if(records.length === 0) {
+            html += '<div class="neon-info">아직 체험한 부스가 없습니다.</div>';
+        } else {
+            records.forEach(record => {
+                html += `
+                    <div class="record-item" id="record-${record.id}">
+                        <div class="record-booth">${record.booth}</div>
+                        <div class="record-comment" id="comment-${record.id}">${record.comment}</div>
+                        <div class="record-time">
+                            ${new Date(record.created_at).toLocaleString('ko-KR')}
+                            <button class="edit-btn" onclick="editComment(${record.id}, '${record.comment.replace(/'/g, "\\'")}')">소감 수정</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        if(!canGetCert) {
+            html += `<div class="neon-alert">인증서 발급까지 ${3-boothCount}개 부스 더 체험하세요!</div>`;
+        }
+        
+        document.getElementById('recordsList').innerHTML = html;
+    }
+
+    function editComment(recordId, currentComment) {
+        const commentDiv = document.getElementById(`comment-${recordId}`);
+        const originalHtml = commentDiv.innerHTML;
+        
+        commentDiv.innerHTML = `
+            <textarea class="comment-edit" id="edit-${recordId}">${currentComment}</textarea>
+            <div>
+                <button class="save-btn" onclick="saveComment(${recordId})">저장</button>
+                <button class="cancel-btn" onclick="cancelEdit(${recordId}, '${originalHtml.replace(/'/g, "\\'")}')">취소</button>
+            </div>
+        `;
+    }
+
+    function saveComment(recordId) {
+        const newComment = document.getElementById(`edit-${recordId}`).value;
+        
+        fetch('/api/update-comment', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                record_id: recordId,
+                comment: newComment
+            })
+        }).then(r=>r.json()).then(data=>{
+            if(data.ok) {
+                document.getElementById(`comment-${recordId}`).innerHTML = newComment;
+                alert('소감이 수정되었습니다.');
+                // 인증서 새로고침
+                loadCertificate();
+            } else {
+                alert('수정 중 오류가 발생했습니다: ' + data.message);
+            }
+        });
+    }
+
+    function cancelEdit(recordId, originalHtml) {
+        document.getElementById(`comment-${recordId}`).innerHTML = originalHtml;
+    }
+
+    function loadCertificate() {
+        fetch('/api/certificate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(info)
+        }).then(r=>r.json()).then(data=>{
+            if(data.ok) {
+                // 행사명 가져오기 (서버에서 전달받거나 기본값 사용)
+                const eventName = data.event_name || '대구수학축제';
+                
+                // 부스 테이블 생성
+                let boothTableRows = '';
+                let boothIndex = 1;
+                Object.keys(data.booth_records).forEach(boothName => {
+                    const record = data.booth_records[boothName];
+                    let comment = record.comment || '소감 없음';
+                    // 긴 소감은 줄임
+                    if (comment.length > 50) {
+                        comment = comment.substring(0, 47) + '...';
+                    }
+                    boothTableRows += `
+                        <tr>
+                            <td style="text-align: center;">${boothIndex}</td>
+                            <td>${boothName}</td>
+                            <td>${comment}</td>
+                        </tr>
+                    `;
+                    boothIndex++;
+                });
+
+                // 발급일자
+                const issueDate = new Date().toLocaleDateString('ko-KR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+
+                document.getElementById('certificateArea').innerHTML = `
+                    <h3>🎓 참여 확인증</h3>
+                    <div class="certificate-content" id="certificateContent">
+                        <div class="cert-number">발급번호: ${data.cert_id}</div>
+                        
+                        <div class="cert-title">${eventName} 활동 확인서</div>
+                        
+                        <div class="cert-student-info">
+                            <div><strong>학교:</strong> ${info.school}</div>
+                            <div><strong>학급:</strong> ${info.grade}학년 ${info.class}반 ${info.number}번</div>
+                            <div><strong>이름:</strong> ${info.name}</div>
+                            <div><strong>체험 부스 수:</strong> ${data.booth_count}개</div>
+                        </div>
+                        
+                        <div class="cert-booths">
+                            <h4 style="margin-bottom: 10px;">체험한 부스 목록</h4>
+                            <table class="cert-booth-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60px; text-align: center;">번호</th>
+                                        <th style="width: 200px;">부스명</th>
+                                        <th>소감</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${boothTableRows}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="cert-confirmation">
+                            위 학생은 대구광역시교육청이 주최•주관하고, 대구중등수학교육연구회가 운영한<br>
+                            '${eventName}'에 참여하여 창의적 체험활동을 하였으므로 위 내용을 확인합니다.
+                        </div>
+                        
+                        <div class="cert-footer">
+                            <div>발급일: ${issueDate}</div>
+                            <div style="margin-top: 40px;">
+                                <strong>대구중등수학교육연구회장</strong>
+                            </div>
+                            <div class="cert-seal" id="certSeal">
+                                <!-- 관인 이미지가 여기에 표시됩니다 -->
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px; text-align: center;">
+                        <button class="neon-btn" onclick="saveCertificateAsPDF()">인증서 저장</button>
+                        <div style="margin-top: 10px; font-size: 0.9em; color: #ccc;">
+                            버튼을 클릭하면 PDF 파일로 저장됩니다.
+                        </div>
+                    </div>
+                `;
+                
+                // 관인 이미지 로드
+                loadSealImage();
+            }
+        });
+    }
+    
+    function loadSealImage() {
+        // 관인 이미지 경로 확인 (우선순위: 커스텀 관인 -> 기본 관인)
+        const customSealPath = '/static/seal.png';
+        const defaultSealPath = '/image/GanIn.png';
+        
+        // 커스텀 관인 시도
+        const customImg = new Image();
+        customImg.onload = function() {
+            document.getElementById('certSeal').innerHTML = `<img src="${customSealPath}" alt="관인">`;
+        };
+        customImg.onerror = function() {
+            // 커스텀 관인이 없으면 기본 관인 시도
+            const defaultImg = new Image();
+            defaultImg.onload = function() {
+                document.getElementById('certSeal').innerHTML = `<img src="${defaultSealPath}" alt="관인">`;
+            };
+            defaultImg.onerror = function() {
+                // 둘 다 없으면 텍스트로 표시
+                document.getElementById('certSeal').innerHTML = '(관인)';
+            };
+            defaultImg.src = defaultSealPath;
+        };
+        customImg.src = customSealPath;
+    }
+    
+    function saveCertificateAsPDF() {
+        // 학생 정보가 있는지 확인
+        if (!info || !info.name) {
+            alert('학생 정보를 찾을 수 없습니다.');
+            return;
+        }
+        
+        // 서버에서 PDF 생성 요청
+        fetch('/api/generate-certificate-pdf', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(info)
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            } else {
+                throw new Error('PDF 생성 중 오류가 발생했습니다.');
+            }
+        })
+        .then(blob => {
+            // PDF 파일 다운로드
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `${info.name}_활동확인서.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            alert('인증서가 PDF로 저장되었습니다.');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert(error.message);
+        });
+    }
+    
+    function logout() {
+        sessionStorage.removeItem('studentInfo');
+        alert('로그아웃되었습니다.');
+        window.location.href = '/student-login';
+    }
+    </script>
+</body>
+</html>

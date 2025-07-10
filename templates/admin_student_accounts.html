@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>학생 계정 관리</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">학생 계정 관리</h2>
+        
+        <!-- 알림 메시지 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="neon-alert" style="margin-bottom: 20px; padding: 10px; border-radius: 4px; 
+                {% if category == 'success' %}background: rgba(0, 255, 231, 0.1); border: 1px solid #00ffe7; color: #00ffe7;
+                {% elif category == 'danger' %}background: rgba(255, 107, 107, 0.1); border: 1px solid #ff6b6b; color: #ff6b6b;
+                {% else %}background: rgba(255, 165, 0, 0.1); border: 1px solid #ffa500; color: #ffa500;{% endif %}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        
+        <!-- 새 학생 계정 추가 -->
+        <div class="add-student-section" style="background: #181c2b; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #00ffe7;">
+            <h3 style="color: #00ffe7; margin-bottom: 15px;">새 학생 계정 추가</h3>
+            <form method="POST" action="/admin/add-student-account" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <div>
+                    <label style="color: #ccc; display: block; margin-bottom: 5px;">학생 ID</label>
+                    <input type="text" name="student_id" required placeholder="로그인 ID" style="width: 100%; padding: 8px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                </div>
+                <div>
+                    <label style="color: #ccc; display: block; margin-bottom: 5px;">비밀번호</label>
+                    <input type="password" name="password" required placeholder="비밀번호" style="width: 100%; padding: 8px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                </div>
+                <div>
+                    <label style="color: #ccc; display: block; margin-bottom: 5px;">학교명</label>
+                    <input type="text" name="school" required placeholder="학교명" style="width: 100%; padding: 8px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                </div>
+                <div>
+                    <label style="color: #ccc; display: block; margin-bottom: 5px;">학년</label>
+                    <input type="number" name="grade" min="1" max="6" required placeholder="학년" style="width: 100%; padding: 8px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                </div>
+                <div>
+                    <label style="color: #ccc; display: block; margin-bottom: 5px;">반</label>
+                    <input type="number" name="class" min="1" max="20" required placeholder="반" style="width: 100%; padding: 8px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                </div>
+                <div>
+                    <label style="color: #ccc; display: block; margin-bottom: 5px;">번호</label>
+                    <input type="number" name="number" min="1" max="50" required placeholder="번호" style="width: 100%; padding: 8px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                </div>
+                <div>
+                    <label style="color: #ccc; display: block; margin-bottom: 5px;">이름</label>
+                    <input type="text" name="name" required placeholder="이름" style="width: 100%; padding: 8px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                </div>
+                <div style="display: flex; align-items: end;">
+                    <button type="submit" class="neon-btn" style="width: 100%;">계정 추가</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 학생 계정 목록 -->
+        <div class="students-list">
+            <h3>등록된 학생 계정 ({{ students|length }}명)</h3>
+            {% if students %}
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 16px; min-width: 800px;">
+                    <thead>
+                        <tr style="background: #181c2b; border-bottom: 2px solid #00ffe7;">
+                            <th style="padding: 12px; text-align: left; color: #00ffe7;">학생 ID</th>
+                            <th style="padding: 12px; text-align: left; color: #00ffe7;">이름</th>
+                            <th style="padding: 12px; text-align: left; color: #00ffe7;">학교</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">학년</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">반</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">번호</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">가입일</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr style="border-bottom: 1px solid #00ffe744;" id="row-{{ student.id }}">
+                            <td style="padding: 12px; color: #fff; font-weight: bold;">{{ student.student_id }}</td>
+                            <td style="padding: 12px; color: #fff;">{{ student.name }}</td>
+                            <td style="padding: 12px; color: #ccc;">{{ student.school }}</td>
+                            <td style="padding: 12px; text-align: center; color: #ccc;">{{ student.grade }}</td>
+                            <td style="padding: 12px; text-align: center; color: #ccc;">{{ student.class }}</td>
+                            <td style="padding: 12px; text-align: center; color: #ccc;">{{ student.number }}</td>
+                            <td style="padding: 12px; text-align: center; color: #ccc; font-size: 0.9em;">
+                                {{ student.created_at[:10] }}
+                            </td>
+                            <td style="padding: 12px; text-align: center;">
+                                <button onclick="editStudent({{ student.id }}, '{{ student.student_id }}', '{{ student.password }}', '{{ student.school }}', {{ student.grade }}, {{ student.class }}, {{ student.number }}, '{{ student.name }}')" 
+                                    style="background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8em; margin-right: 5px;">
+                                    수정
+                                </button>
+                                <form method="POST" action="/admin/delete-student-account/{{ student.id }}" style="display: inline-block; margin: 0;">
+                                    <button type="submit" onclick="return confirm('정말로 학생 \"{{ student.name }}\"의 계정을 삭제하시겠습니까?\\n\\n삭제된 계정은 복구할 수 없습니다.')" 
+                                        style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
+                                        삭제
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        
+                        <!-- 수정 폼 (숨김) -->
+                        <tr id="edit-row-{{ student.id }}" style="display: none; background: #2a2d3a; border: 2px solid #00ffe7;">
+                            <td colspan="8" style="padding: 15px;">
+                                <form method="POST" action="/admin/edit-student-account/{{ student.id }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; align-items: end;">
+                                    <div>
+                                        <label style="color: #ccc; display: block; margin-bottom: 5px; font-size: 0.9em;">학생 ID</label>
+                                        <input type="text" name="student_id" value="{{ student.student_id }}" required style="width: 100%; padding: 6px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px; font-size: 0.9em;">
+                                    </div>
+                                    <div>
+                                        <label style="color: #ccc; display: block; margin-bottom: 5px; font-size: 0.9em;">비밀번호</label>
+                                        <input type="password" name="password" value="{{ student.password }}" required style="width: 100%; padding: 6px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px; font-size: 0.9em;">
+                                    </div>
+                                    <div>
+                                        <label style="color: #ccc; display: block; margin-bottom: 5px; font-size: 0.9em;">학교명</label>
+                                        <input type="text" name="school" value="{{ student.school }}" required style="width: 100%; padding: 6px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px; font-size: 0.9em;">
+                                    </div>
+                                    <div>
+                                        <label style="color: #ccc; display: block; margin-bottom: 5px; font-size: 0.9em;">학년</label>
+                                        <input type="number" name="grade" value="{{ student.grade }}" min="1" max="6" required style="width: 100%; padding: 6px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px; font-size: 0.9em;">
+                                    </div>
+                                    <div>
+                                        <label style="color: #ccc; display: block; margin-bottom: 5px; font-size: 0.9em;">반</label>
+                                        <input type="number" name="class" value="{{ student.class }}" min="1" max="20" required style="width: 100%; padding: 6px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px; font-size: 0.9em;">
+                                    </div>
+                                    <div>
+                                        <label style="color: #ccc; display: block; margin-bottom: 5px; font-size: 0.9em;">번호</label>
+                                        <input type="number" name="number" value="{{ student.number }}" min="1" max="50" required style="width: 100%; padding: 6px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px; font-size: 0.9em;">
+                                    </div>
+                                    <div>
+                                        <label style="color: #ccc; display: block; margin-bottom: 5px; font-size: 0.9em;">이름</label>
+                                        <input type="text" name="name" value="{{ student.name }}" required style="width: 100%; padding: 6px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px; font-size: 0.9em;">
+                                    </div>
+                                    <div style="display: flex; gap: 5px;">
+                                        <button type="submit" style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9em;">저장</button>
+                                        <button type="button" onclick="cancelEdit({{ student.id }})" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9em;">취소</button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="neon-info">
+                <p>등록된 학생 계정이 없습니다.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="admin-links" style="margin-top: 20px;">
+            <a href="/admin" class="neon-btn">관리자 페이지로 돌아가기</a>
+        </div>
+    </div>
+
+    <script>
+        function editStudent(id, studentId, password, school, grade, classNum, number, name) {
+            // 모든 수정 행 숨김
+            document.querySelectorAll('[id^="edit-row-"]').forEach(row => {
+                row.style.display = 'none';
+            });
+            
+            // 모든 일반 행 표시
+            document.querySelectorAll('[id^="row-"]').forEach(row => {
+                if (!row.id.startsWith('edit-row-')) {
+                    row.style.display = 'table-row';
+                }
+            });
+            
+            // 선택된 학생의 일반 행 숨김
+            document.getElementById(`row-${id}`).style.display = 'none';
+            
+            // 선택된 학생의 수정 행 표시
+            document.getElementById(`edit-row-${id}`).style.display = 'table-row';
+        }
+        
+        function cancelEdit(id) {
+            document.getElementById(`edit-row-${id}`).style.display = 'none';
+            document.getElementById(`row-${id}`).style.display = 'table-row';
+        }
+    </script>
+</body>
+</html>

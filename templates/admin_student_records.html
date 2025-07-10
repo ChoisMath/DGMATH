@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>학생별 기록 관리</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">학생별 기록 관리</h2>
+        
+        <!-- 학생 검색 -->
+        <div class="search-section" style="margin-bottom: 20px;">
+            <h3>학생 검색</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                <input type="text" id="searchSchool" placeholder="학교명" style="padding: 8px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px;">
+                <input type="number" id="searchGrade" placeholder="학년" style="padding: 8px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px; width: 80px;">
+                <input type="number" id="searchClass" placeholder="반" style="padding: 8px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px; width: 80px;">
+                <input type="number" id="searchNumber" placeholder="번호" style="padding: 8px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px; width: 80px;">
+                <input type="text" id="searchName" placeholder="이름" style="padding: 8px; border: 1px solid #00ffe7; background: #181c2b; color: #fff; border-radius: 4px;">
+                <button onclick="searchStudent()" class="neon-btn">검색</button>
+            </div>
+        </div>
+
+        <!-- 검색 결과 -->
+        <div id="searchResults" style="margin-bottom: 20px; display: none;">
+            <h3>학생 정보</h3>
+            <div id="studentInfo" style="background: #181c2b; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #00ffe7;"></div>
+            
+            <h3>체험 기록 <span id="boothCount" style="color: #00ffe7;"></span></h3>
+            <div style="margin-bottom: 15px;">
+                <button onclick="showAddRecordForm()" class="neon-btn" style="font-size: 0.9em;">새 기록 추가</button>
+            </div>
+            <div id="addRecordForm" style="display: none; background: #181c2b; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #00ffe7;">
+                <h4>새 체험 기록 추가</h4>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+                    <input type="text" id="addBooth" placeholder="부스명" style="padding: 8px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px;">
+                    <input type="text" id="addComment" placeholder="소감" style="padding: 8px; border: 1px solid #00ffe7; background: #2a2d3a; color: #fff; border-radius: 4px; flex: 1;">
+                </div>
+                <div>
+                    <button onclick="addNewRecord()" class="neon-btn" style="font-size: 0.9em; margin-right: 10px;">추가</button>
+                    <button onclick="hideAddRecordForm()" style="background: #666; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">취소</button>
+                </div>
+            </div>
+            <div id="recordsList"></div>
+        </div>
+
+        <!-- 전체 학생 목록 -->
+        <div class="students-section">
+            <h3>전체 학생 목록</h3>
+            {% if students %}
+            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #00ffe744; border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="position: sticky; top: 0; background: #181c2b;">
+                        <tr style="border-bottom: 2px solid #00ffe7;">
+                            <th style="padding: 12px; text-align: left; color: #00ffe7;">학교</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">학년</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">반</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">번호</th>
+                            <th style="padding: 12px; text-align: left; color: #00ffe7;">이름</th>
+                            <th style="padding: 12px; text-align: center; color: #00ffe7;">기록보기</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr style="border-bottom: 1px solid #00ffe744;">
+                            <td style="padding: 12px; color: #fff;">{{ student.school }}</td>
+                            <td style="padding: 12px; text-align: center; color: #ccc;">{{ student.grade }}</td>
+                            <td style="padding: 12px; text-align: center; color: #ccc;">{{ student.class }}</td>
+                            <td style="padding: 12px; text-align: center; color: #ccc;">{{ student.number }}</td>
+                            <td style="padding: 12px; color: #fff; font-weight: bold;">{{ student.name }}</td>
+                            <td style="padding: 12px; text-align: center;">
+                                <button onclick="quickSearch('{{ student.school }}', {{ student.grade }}, {{ student.class }}, {{ student.number }}, '{{ student.name }}')" 
+                                    class="neon-btn" style="font-size: 0.8em; padding: 4px 8px;">
+                                    기록보기
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="neon-info">
+                <p>등록된 학생이 없습니다.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="admin-links" style="margin-top: 20px;">
+            <a href="/admin" class="neon-btn">관리자 페이지로 돌아가기</a>
+        </div>
+    </div>
+
+    <script>
+        async function searchStudent() {
+            const school = document.getElementById('searchSchool').value;
+            const grade = document.getElementById('searchGrade').value;
+            const class_ = document.getElementById('searchClass').value;
+            const number = document.getElementById('searchNumber').value;
+            const name = document.getElementById('searchName').value;
+            
+            if (!school || !grade || !class_ || !number || !name) {
+                alert('모든 필드를 입력해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/student-records', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        school: school,
+                        grade: grade,
+                        class: class_,
+                        number: number,
+                        name: name
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    showStudentRecords(school, grade, class_, number, name, data.records, data.booth_count, data.certificate_number);
+                } else {
+                    alert('학생 기록을 찾을 수 없습니다.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('검색 중 오류가 발생했습니다.');
+            }
+        }
+        
+        function quickSearch(school, grade, class_, number, name) {
+            document.getElementById('searchSchool').value = school;
+            document.getElementById('searchGrade').value = grade;
+            document.getElementById('searchClass').value = class_;
+            document.getElementById('searchNumber').value = number;
+            document.getElementById('searchName').value = name;
+            searchStudent();
+        }
+        
+        let currentStudentData = null;
+        
+        function showStudentRecords(school, grade, class_, number, name, records, boothCount, certificateNumber) {
+            const resultsDiv = document.getElementById('searchResults');
+            const studentInfoDiv = document.getElementById('studentInfo');
+            const recordsListDiv = document.getElementById('recordsList');
+            const boothCountSpan = document.getElementById('boothCount');
+            
+            // 현재 학생 데이터 저장
+            currentStudentData = { school, grade, class_, number, name };
+            
+            // 학생 정보 표시
+            let certificateButton = '';
+            if (boothCount >= 3) {
+                if (certificateNumber) {
+                    // 이미 발급된 확인증이 있는 경우
+                    certificateButton = `
+                        <span style="color: #28a745; margin-left: 20px; font-weight: bold;">확인증 발급완료</span>
+                        <br><small style="color: #ccc; margin-left: 20px;">발급번호: ${certificateNumber}</small>
+                        <button onclick="viewCertificate('${certificateNumber}')" 
+                            style="background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-left: 10px; font-size: 0.8em;">
+                            확인증 보기
+                        </button>
+                    `;
+                } else {
+                    // 확인증 발급 가능한 경우
+                    certificateButton = `
+                        <button onclick="generateCertificate('${school}', ${grade}, ${class_}, ${number}, '${name}')" 
+                            style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-left: 20px; font-size: 0.9em;">
+                            확인증 발급
+                        </button>
+                    `;
+                }
+            } else {
+                // 확인증 발급 불가능한 경우
+                certificateButton = `
+                    <span style="color: #ffc107; margin-left: 20px; font-weight: bold;">확인증 발급 불가</span>
+                    <br><small style="color: #ccc; margin-left: 20px;">3개 이상 부스 체험 필요 (현재 ${boothCount}개)</small>
+                `;
+            }
+            
+            studentInfoDiv.innerHTML = `
+                <strong>${school} ${grade}학년 ${class_}반 ${number}번 ${name}</strong>
+                <span style="color: #00ffe7; margin-left: 20px;">총 ${boothCount}개 부스 체험</span>
+                <div style="margin-top: 10px;">${certificateButton}</div>
+            `;
+            
+            // 부스 카운트 표시
+            boothCountSpan.textContent = `(${records.length}개 기록)`;
+            
+            // 체험 기록 표시
+            if (records.length > 0) {
+                let recordsHtml = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+                recordsHtml += `
+                    <thead>
+                        <tr style="background: #181c2b; border-bottom: 2px solid #00ffe7;">
+                            <th style="padding: 10px; text-align: left; color: #00ffe7;">부스명</th>
+                            <th style="padding: 10px; text-align: left; color: #00ffe7;">소감</th>
+                            <th style="padding: 10px; text-align: center; color: #00ffe7;">체험일시</th>
+                            <th style="padding: 10px; text-align: center; color: #00ffe7;">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                `;
+                
+                records.forEach(record => {
+                    const date = new Date(record.created_at).toLocaleString('ko-KR');
+                    recordsHtml += `
+                        <tr style="border-bottom: 1px solid #00ffe744;">
+                            <td style="padding: 10px; color: #fff; font-weight: bold;">${record.booth}</td>
+                            <td style="padding: 10px; color: #ccc;" id="comment-${record.id}">${record.comment || '소감 없음'}</td>
+                            <td style="padding: 10px; text-align: center; color: #ccc; font-size: 0.9em;">${date}</td>
+                            <td style="padding: 10px; text-align: center;">
+                                <button onclick="editComment(${record.id}, '${record.comment || ''}')" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 5px; font-size: 0.8em;">수정</button>
+                                <button onclick="deleteRecord(${record.id})" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em;">삭제</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                recordsHtml += '</tbody></table>';
+                recordsListDiv.innerHTML = recordsHtml;
+            } else {
+                recordsListDiv.innerHTML = '<p style="color: #ccc; text-align: center; padding: 20px;">체험 기록이 없습니다.</p>';
+            }
+            
+            resultsDiv.style.display = 'block';
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function showAddRecordForm() {
+            document.getElementById('addRecordForm').style.display = 'block';
+        }
+        
+        function hideAddRecordForm() {
+            document.getElementById('addRecordForm').style.display = 'none';
+            document.getElementById('addBooth').value = '';
+            document.getElementById('addComment').value = '';
+        }
+        
+        async function addNewRecord() {
+            if (!currentStudentData) {
+                alert('학생을 먼저 선택해주세요.');
+                return;
+            }
+            
+            const booth = document.getElementById('addBooth').value;
+            const comment = document.getElementById('addComment').value;
+            
+            if (!booth) {
+                alert('부스명을 입력해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/add-record', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ...currentStudentData,
+                        booth: booth,
+                        comment: comment
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert('새 기록이 추가되었습니다.');
+                    hideAddRecordForm();
+                    // 학생 기록 새로고침
+                    searchStudent();
+                } else {
+                    alert('기록 추가 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('기록 추가 중 오류가 발생했습니다.');
+            }
+        }
+        
+        async function editComment(recordId, currentComment) {
+            const newComment = prompt('새 소감을 입력하세요:', currentComment);
+            
+            if (newComment === null) return; // 취소
+            
+            try {
+                const response = await fetch('/api/update-comment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        record_id: recordId,
+                        comment: newComment
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert('소감이 수정되었습니다.');
+                    // 화면에서 즉시 업데이트
+                    document.getElementById(`comment-${recordId}`).textContent = newComment || '소감 없음';
+                } else {
+                    alert('수정 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('수정 중 오류가 발생했습니다.');
+            }
+        }
+        
+        async function deleteRecord(recordId) {
+            if (!confirm('정말로 이 기록을 삭제하시겠습니까?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/delete-record', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        record_id: recordId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert('기록이 삭제되었습니다.');
+                    // 학생 기록 새로고침
+                    searchStudent();
+                } else {
+                    alert('삭제 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('삭제 중 오류가 발생했습니다.');
+            }
+        }
+        
+        async function generateCertificate(school, grade, class_, number, name) {
+            if (!confirm(`${name} 학생에게 확인증을 발급하시겠습니까?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/admin/issue-certificate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        school: school,
+                        grade: grade,
+                        class: class_,
+                        number: number,
+                        name: name
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert(`확인증이 발급되었습니다!\n\n발급번호: ${data.certificate_number}\n체험 부스 수: ${data.booth_count}개\n\n확인증은 [확인증 발급 관리] 페이지에서 확인할 수 있습니다.`);
+                    // 확인증 발급 후 정보 새로고침
+                    searchStudent();
+                } else {
+                    alert('확인증 발급 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('확인증 발급 중 오류가 발생했습니다.');
+            }
+        }
+        
+        function viewCertificate(certificateNumber) {
+            window.open(`/admin/certificate-view/${certificateNumber}`, '_blank');
+        }
+    </script>
+</body>
+</html>

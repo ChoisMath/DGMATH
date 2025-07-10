@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>부스 체크인</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">{{ booth }} 체크인</h2>
+        <div id="studentInfo"></div>
+        <form id="checkinForm">
+            <label>소감<br>
+                <textarea id="comment" required rows="3" style="width:100%" placeholder="이 부스에서의 체험 소감을 남겨주세요..."></textarea>
+            </label><br>
+            <button type="submit" class="neon-btn">체크인 완료</button>
+        </form>
+        
+        <div style="margin-top: 20px; text-align: center;">
+            <a href="/certificate" class="neon-link">확인증 발급하기</a>
+        </div>
+    </div>
+    
+    <script>
+        // 로그인된 학생 정보 확인
+        const studentInfo = sessionStorage.getItem('studentInfo');
+        
+        if (!studentInfo) {
+            alert('로그인이 필요합니다!');
+            window.location.href = '/student-login?booth={{ booth }}';
+        } else {
+            const info = JSON.parse(studentInfo);
+            document.getElementById('studentInfo').innerHTML = 
+                `<div class='neon-info'>${info.school} ${info.grade}학년 ${info.class}반 ${info.number}번 ${info.name}</div>`;
+        }
+        
+        document.getElementById('checkinForm').onsubmit = function(e) {
+            e.preventDefault();
+            
+            const studentInfo = sessionStorage.getItem('studentInfo');
+            if (!studentInfo) {
+                alert('로그인이 필요합니다!');
+                window.location.href = '/student-login?booth={{ booth }}';
+                return;
+            }
+            
+            const info = JSON.parse(studentInfo);
+            
+            fetch(window.location.pathname + window.location.search, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    ...info,
+                    booth: "{{ booth }}",
+                    comment: document.getElementById('comment').value
+                })
+            }).then(r => r.json()).then(data => {
+                if (data.result === 'success') {
+                    alert('체크인 및 소감이 저장되었습니다!\n\n다른 부스도 체험해보세요!');
+                    window.location.href = '/certificate';
+                } else {
+                    alert('체크인 실패: ' + (data.message || '알 수 없는 오류'));
+                }
+            }).catch(error => {
+                console.error('Error:', error);
+                alert('체크인 중 오류가 발생했습니다.');
+            });
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>대기현황 확인</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">대기현황 확인</h2>
+        <div class="admin-links">
+            <a href="/admin" class="neon-btn">관리자 대시보드</a>
+            <button onclick="refreshData()" class="neon-btn">새로고침</button>
+        </div>
+        
+        <!-- 전체 통계 -->
+        <div class="data-summary">
+            <h3>전체 통계</h3>
+            <div id="overallStats"></div>
+        </div>
+        
+        <!-- 부스별 대기현황 -->
+        <div class="data-summary">
+            <h3>부스별 대기현황</h3>
+            <div id="boothQueueStatus"></div>
+        </div>
+        
+        <!-- 실시간 알림 -->
+        <div class="data-summary">
+            <h3>최근 알림 (최근 50개)</h3>
+            <div id="recentNotifications"></div>
+        </div>
+    </div>
+    
+    <script>
+        // 페이지 로드 시 데이터 로드
+        document.addEventListener('DOMContentLoaded', function() {
+            loadQueueStatus();
+            
+            // 30초마다 자동 새로고침
+            setInterval(loadQueueStatus, 30000);
+        });
+        
+        // 데이터 새로고침
+        function refreshData() {
+            loadQueueStatus();
+        }
+        
+        // 대기현황 로드
+        async function loadQueueStatus() {
+            try {
+                const response = await fetch('/admin/api/queue-status');
+                const data = await response.json();
+                
+                if (data.ok) {
+                    displayOverallStats(data.stats);
+                    displayBoothQueueStatus(data.booths);
+                    displayRecentNotifications(data.notifications);
+                } else {
+                    document.getElementById('overallStats').innerHTML = '<div class="neon-alert">데이터 로드 실패</div>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('overallStats').innerHTML = '<div class="neon-alert">오류 발생</div>';
+            }
+        }
+        
+        // 전체 통계 표시
+        function displayOverallStats(stats) {
+            const container = document.getElementById('overallStats');
+            
+            container.innerHTML = `
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div class="stat-card">
+                        <h4>총 부스 수</h4>
+                        <p class="stat-number">${stats.total_booths}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>총 대기자 수</h4>
+                        <p class="stat-number">${stats.total_waiting}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>호출된 학생 수</h4>
+                        <p class="stat-number">${stats.total_called}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>완료된 학생 수</h4>
+                        <p class="stat-number">${stats.total_completed}</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4>등록된 운영자 수</h4>
+                        <p class="stat-number">${stats.total_operators}</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 부스별 대기현황 표시
+        function displayBoothQueueStatus(booths) {
+            const container = document.getElementById('boothQueueStatus');
+            
+            if (booths.length === 0) {
+                container.innerHTML = '<p>등록된 부스가 없습니다.</p>';
+                return;
+            }
+            
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += `
+                <tr style="background: #181c2b; color: #00ffe7;">
+                    <th style="border: 1px solid #00ffe744; padding: 10px;">부스명</th>
+                    <th style="border: 1px solid #00ffe744; padding: 10px;">운영자</th>
+                    <th style="border: 1px solid #00ffe744; padding: 10px;">장소</th>
+                    <th style="border: 1px solid #00ffe744; padding: 10px;">대기자</th>
+                    <th style="border: 1px solid #00ffe744; padding: 10px;">호출됨</th>
+                    <th style="border: 1px solid #00ffe744; padding: 10px;">완료됨</th>
+                    <th style="border: 1px solid #00ffe744; padding: 10px;">상태</th>
+                </tr>
+            `;
+            
+            booths.forEach(booth => {
+                const statusColor = booth.waiting_count === 0 ? '#00ffe7' : 
+                                   booth.waiting_count < 5 ? '#ffa500' : '#ff6b6b';
+                const statusText = booth.waiting_count === 0 ? '여유' : 
+                                  booth.waiting_count < 5 ? '보통' : '혼잡';
+                
+                html += `
+                    <tr>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">${booth.name}</td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">${booth.operator_name || '미지정'}</td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">${booth.location || '미정'}</td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">${booth.waiting_count}명</td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">${booth.called_count}명</td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px;">${booth.completed_count}명</td>
+                        <td style="border: 1px solid #00ffe744; padding: 8px; color: ${statusColor};">${statusText}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</table>';
+            container.innerHTML = html;
+        }
+        
+        // 최근 알림 표시
+        function displayRecentNotifications(notifications) {
+            const container = document.getElementById('recentNotifications');
+            
+            if (notifications.length === 0) {
+                container.innerHTML = '<p>최근 알림이 없습니다.</p>';
+                return;
+            }
+            
+            let html = '';
+            notifications.forEach(notification => {
+                const statusColor = notification.status === 'sent' ? '#00ffe7' : 
+                                   notification.status === 'pending' ? '#ffa500' : '#ff6b6b';
+                
+                html += `
+                    <div style="background: #181c2b; border: 1px solid #00ffe744; padding: 10px; margin: 5px 0; border-radius: 5px;">
+                        <p><strong>${notification.booth_name}</strong> → ${notification.student_name}</p>
+                        <p>${notification.message}</p>
+                        <p style="font-size: 0.9em; color: #ccc;">
+                            ${new Date(notification.created_at).toLocaleString()} 
+                            | <span style="color: ${statusColor}">${notification.status}</span>
+                        </p>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+    </script>
+    
+    <style>
+        .stat-card {
+            background: #181c2b;
+            border: 1px solid #00ffe744;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            min-width: 150px;
+        }
+        
+        .stat-card h4 {
+            margin: 0 0 10px 0;
+            color: #00ffe7;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #fff;
+            margin: 0;
+        }
+        
+        table {
+            font-size: 0.9em;
+        }
+        
+        th, td {
+            text-align: left;
+            vertical-align: top;
+        }
+        
+        th {
+            font-weight: bold;
+        }
+    </style>
+</body>
+</html>

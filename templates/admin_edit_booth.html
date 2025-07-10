@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>부스 수정</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">부스 수정</h2>
+        
+        <form id="editBoothForm" action="/admin/api/update-booth" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="id" value="{{ booth.id }}">
+            
+            <div class="form-group">
+                <label for="name">부스명:</label>
+                <input type="text" id="name" name="name" value="{{ booth.name }}" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">설명:</label>
+                <textarea id="description" name="description" rows="5">{{ booth.description }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="location">장소:</label>
+                <input type="text" id="location" name="location" value="{{ booth.location }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="operator_id">운영자 교사명:</label>
+                <select id="operator_id" name="operator_id" required>
+                    {% for operator in operators %}
+                        <option value="{{ operator.id }}" {% if operator.id == booth.operator_id %}selected{% endif %}>
+                            {{ operator.club_name }} ({{ operator.operator_id }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="pdf_file">상세 설명 PDF (선택 사항):</label>
+                <input type="file" id="pdf_file" name="pdf_file" accept="application/pdf">
+                {% if booth.pdf_file_path %}
+                    <p>현재 파일: <a href="/{{ booth.pdf_file_path }}" target="_blank">{{ booth.pdf_file_path.split('/')[-1] }}</a></p>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <input type="checkbox" id="is_active" name="is_active" {% if booth.is_active %}checked{% endif %}>
+                <label for="is_active">부스 활성화</label>
+            </div>
+            
+            <button type="submit" class="neon-btn">부스 정보 업데이트</button>
+        </form>
+
+        <div class="admin-links" style="margin-top: 20px;">
+            <a href="/admin/booths" class="neon-btn">부스 목록으로 돌아가기</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('editBoothForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            const response = await fetch(this.action, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.ok) {
+                alert(result.message);
+                window.location.href = '/admin/booths'; // 목록 페이지로 리다이렉트
+            } else {
+                alert('오류: ' + result.message);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>QR코드 생성기</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">부스별 QR코드 생성</h2>
+        <div class="qr-form">
+            <form method="post" action="/admin/generate-qr">
+                <label>부스명: <input type="text" name="booth_name" required placeholder="예: 수학체험관"></label><br>
+                <label>부스 설명 (선택): <textarea name="booth_description" placeholder="부스에 대한 간단한 설명을 입력하세요" rows="3"></textarea></label><br>
+                <button type="submit" class="neon-btn">QR코드 생성</button>
+            </form>
+        </div>
+        <div class="qr-info">
+            <h3>사용 방법</h3>
+            <ol>
+                <li>부스명을 입력하세요 (예: 수학체험관, 과학실험실)</li>
+                <li>"QR코드 생성" 버튼을 클릭하세요</li>
+                <li>생성된 QR코드를 다운로드하세요</li>
+                <li>QR코드를 부스에 출력하여 학생들이 스캔할 수 있도록 하세요</li>
+            </ol>
+            <p><strong>참고:</strong> QR코드를 스캔하면 해당 부스의 체크인 페이지로 이동합니다.</p>
+        </div>
+        <div class="admin-links">
+            <a href="/admin" class="neon-btn">관리자 페이지로 돌아가기</a>
+        </div>
+    </div>
+</body>
+</html> 

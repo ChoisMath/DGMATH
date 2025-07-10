@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>학생 로그인</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        <h2 class="neon-text">학생 로그인</h2>
+        
+        {% if booth %}
+        <div style="background: #181c2b; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #00ffe7; text-align: center;">
+            <h3 style="color: #00ffe7; margin: 0 0 10px 0;">부스 체크인</h3>
+            <p style="color: #fff; margin: 0; font-size: 1.1em; font-weight: bold;">{{ booth }}</p>
+            <p style="color: #ccc; margin: 5px 0 0 0; font-size: 0.9em;">로그인 후 위 부스에서 체크인됩니다</p>
+        </div>
+        {% endif %}
+        
+        <form id="loginForm">
+            <label>아이디 <input type="text" id="student_id" placeholder="등록한 아이디를 입력하세요" required></label><br>
+            <label>비밀번호 <input type="password" id="password" placeholder="비밀번호를 입력하세요" required></label><br>
+            
+            <button type="submit" class="neon-btn" style="margin-top: 20px;">
+                {% if booth %}
+                체크인하기
+                {% else %}
+                로그인
+                {% endif %}
+            </button>
+        </form>
+        
+        <div style="margin-top: 30px; text-align: center; border-top: 1px solid #00ffe744; padding-top: 20px;">
+            <h3 style="color: #00ffe7;">계정이 없나요?</h3>
+            <a href="/student_info" class="neon-link">계정 생성하기</a>
+        </div>
+        
+        {% if not booth %}
+        <div style="margin-top: 20px; text-align: center;">
+            <a href="/certificate" class="neon-link">확인증 발급하기</a>
+        </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        document.getElementById('loginForm').onsubmit = async function(e) {
+            e.preventDefault();
+            
+            const studentId = document.getElementById('student_id').value;
+            const password = document.getElementById('password').value;
+            
+            if (!studentId || !password) {
+                alert('아이디와 비밀번호를 모두 입력해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/student-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        student_id: studentId,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    // 로그인 성공시 학생 정보를 세션에 저장
+                    sessionStorage.setItem('studentInfo', JSON.stringify(data.student));
+                    
+                    const booth = '{{ booth }}';
+                    if (booth) {
+                        // 부스 체크인으로 이동
+                        window.location.href = `/checkin?booth=${encodeURIComponent(booth)}`;
+                    } else {
+                        // 일반 로그인이면 학생 대시보드로 이동
+                        alert('로그인되었습니다!');
+                        window.location.href = '/student-dashboard';
+                    }
+                } else {
+                    alert('로그인 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('로그인 중 오류가 발생했습니다.');
+            }
+        };
+    </script>
+</body>
+</html>

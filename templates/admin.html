@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>관리자 페이지</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container neon-box">
+        {% if session.admin %}
+            <h2 class="neon-text">관리자 대시보드</h2>
+            <div class="admin-menu">
+                <a href="/admin/booths" class="neon-btn">부스 관리</a>
+                <a href="/admin/booth-operators" class="neon-btn">부스 운영자 관리</a>
+                <a href="/admin/queue-status" class="neon-btn">대기현황 확인</a>
+                <a href="/admin/student-accounts" class="neon-btn">학생 계정 관리</a>
+                <a href="/admin/student-records" class="neon-btn">학생 기록 관리</a>
+                <a href="/admin/certificates" class="neon-btn">확인증 발급 관리</a>
+                <a href="/admin/download" class="neon-btn">데이터 다운로드 (Excel)</a>
+                <form method="POST" action="/admin/init-database" style="display: inline;">
+                    <button type="submit" class="neon-btn" style="background: #ff9500;">DB 테이블 확인/생성</button>
+                </form>
+                <a href="/admin/logout" class="neon-btn">로그아웃</a>
+            </div>
+            <div class="data-summary">
+                <h3>데이터 요약</h3>
+                <p>체크인 데이터를 Excel 파일로 다운로드할 수 있습니다.</p>
+                <p>다운로드된 파일에는 다음 정보가 포함됩니다:</p>
+                <ul>
+                    <li>학교명, 학년, 반, 번호, 이름</li>
+                    <li>방문한 부스명</li>
+                    <li>소감</li>
+                    <li>체크인 시간</li>
+                </ul>
+            </div>
+            
+            <!-- 전체 초기화 버튼 (우측하단) -->
+            <div style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+                <form method="POST" action="/admin/clear-all-data" style="margin: 0;">
+                    <button type="submit" onclick="return confirm('⚠️ 경고: 전체 데이터 초기화 ⚠️\\n\\n이 작업은 되돌릴 수 없습니다!\\n\\n삭제될 데이터:\\n- 모든 학생 계정\\n- 모든 학생 체크인 기록\\n- 모든 발급된 인증서\\n- 모든 등록된 부스\\n- 모든 QR 코드 파일\\n\\n정말로 모든 데이터를 삭제하시겠습니까?\\n\\n이 작업 후에는 시스템이 완전히 초기화됩니다.')" 
+                        style="background: #cc0000; color: white; border: none; padding: 15px 25px; border-radius: 8px; cursor: pointer; font-size: 1.1em; font-weight: bold; box-shadow: 0 4px 15px rgba(204, 0, 0, 0.4); transition: background 0.3s ease;"
+                        onmouseover="this.style.background='#aa0000'"
+                        onmouseout="this.style.background='#cc0000'">
+                        💀 전체 초기화
+                    </button>
+                </form>
+            </div>
+        {% else %}
+            <h2 class="neon-text">관리자 로그인</h2>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  <div class="neon-alert">{{ message }}</div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+            <form method="post">
+                <label>비밀번호 <input type="password" name="pw" required></label>
+                <button type="submit" class="neon-btn">로그인</button>
+            </form>
+        {% endif %}
+    </div>
+</body>
+</html> 

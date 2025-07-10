@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+
+# Generated QR codes
+static/qr_codes/
+
+#AI
+.gemini/
+.claude/
+
+.mcp.json
+
+CLAUDE.md
+GEMINI.md
+package-lock.json
+package.json
