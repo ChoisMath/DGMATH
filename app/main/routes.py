@@ -81,6 +81,20 @@ def certificate():
     """Certificate issuance page"""
     return render_template('certificate.html')
 
+# === Student Page Redirects ===
+
+@main_bp.route('/student-login')
+def student_login_redirect():
+    """Redirect to proper student login route"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.student_login'))
+
+@main_bp.route('/student_info')  
+def student_info_redirect():
+    """Redirect to proper student info route"""
+    from flask import redirect, url_for
+    return redirect(url_for('student.student_info'))
+
 # === Health Check Route ===
 
 @main_bp.route('/health')
