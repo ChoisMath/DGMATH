@@ -460,6 +460,89 @@ def api_complete_student():
     except Exception as e:
         return jsonify({'ok': False, 'message': f'완료 처리 중 오류: {str(e)}'})
 
+@booth_bp.route('/api/recall-student', methods=['POST'])
+def api_recall_student():
+    """학생 재호출 API"""
+    if not SUPABASE_AVAILABLE:
+        return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
+    
+    data = request.get_json()
+    entry_id = data.get('entry_id')
+    
+    if not entry_id:
+        return jsonify({'ok': False, 'message': '대기열 ID가 필요합니다.'})
+    
+    try:
+        # 대기열 엔트리 조회
+        entry_result = supabase.table('queue_entries').select('''
+            *, 
+            students!inner(name, phone),
+            booths!inner(name, location)
+        ''').eq('id', entry_id).execute()
+        
+        if not entry_result.data:
+            return jsonify({'ok': False, 'message': '대기열 엔트리를 찾을 수 없습니다.'})
+        
+        entry = entry_result.data[0]
+        student = entry['students']
+        booth = entry['booths']
+        
+        # 상태를 'called'로 업데이트
+        update_result = supabase.table('queue_entries').update({
+            'status': 'called',
+            'called_at': 'now()'
+        }).eq('id', entry_id).execute()
+        
+        if update_result.data:
+            # SMS 알림 발송
+            message = f"[{booth['name']}] 재호출입니다. {booth['location']}로 3분 내 방문해 주세요."
+            
+            # SOLAPI를 통한 실제 SMS 발송
+            sms_success = send_sms_notification(
+                phone_number=student['phone'],
+                message=message,
+                booth_id=entry['booth_id'],
+                student_id=entry['student_id']
+            )
+            
+            if sms_success:
+                return jsonify({'ok': True, 'message': '학생이 재호출되었고 SMS가 발송되었습니다.'})
+            else:
+                return jsonify({'ok': True, 'message': '학생이 재호출되었지만 SMS 발송에 실패했습니다.'})
+        else:
+            return jsonify({'ok': False, 'message': '재호출 상태 업데이트에 실패했습니다.'})
+            
+    except Exception as e:
+        return jsonify({'ok': False, 'message': f'학생 재호출 중 오류: {str(e)}'})
+
+@booth_bp.route('/api/revert-student', methods=['POST'])
+def api_revert_student():
+    """학생 대기 상태로 되돌리기 API"""
+    if not SUPABASE_AVAILABLE:
+        return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
+    
+    data = request.get_json()
+    entry_id = data.get('entry_id')
+    
+    if not entry_id:
+        return jsonify({'ok': False, 'message': '대기열 ID가 필요합니다.'})
+    
+    try:
+        # 상태를 'waiting'로 되돌리기
+        result = supabase.table('queue_entries').update({
+            'status': 'waiting',
+            'called_at': None,
+            'completed_at': None
+        }).eq('id', entry_id).execute()
+        
+        if result.data:
+            return jsonify({'ok': True, 'message': '학생이 대기 상태로 되돌려졌습니다.'})
+        else:
+            return jsonify({'ok': False, 'message': '되돌리기에 실패했습니다.'})
+            
+    except Exception as e:
+        return jsonify({'ok': False, 'message': f'되돌리기 중 오류: {str(e)}'})
+
 # =============================================================================
 # 하위 호환성을 위한 비-prefix 라우트들 (기존 app.py에서 마이그레이션)
 # =============================================================================

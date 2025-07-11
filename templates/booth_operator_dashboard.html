@@ -149,7 +149,7 @@
             }
         };
         
-        // 실제 대기자만 로드 (waiting 상태만)
+        // 실제 대기자만 로드 (waiting과 called 상태)
         async function loadWaitingQueue() {
             try {
                 const response = await fetch('/api/operator-booths', {
@@ -166,7 +166,7 @@
                 
                 if (data.ok && data.booths.length > 0) {
                     const boothId = data.booths[0].id; // 첫 번째 부스 사용
-                    await loadQueueForBooth(boothId, 'waiting'); // waiting 상태만 로드
+                    await loadQueueForBooth(boothId, 'active'); // waiting과 called 상태 로드
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -213,8 +213,12 @@
                 const data = await response.json();
                 
                 if (data.ok) {
-                    if (mode === 'waiting') {
-                        // waiting 상태만 필터링
+                    if (mode === 'active') {
+                        // waiting과 called 상태만 필터링 (완료되지 않은 활성 대기자)
+                        const activeQueue = data.queue.filter(entry => entry.status === 'waiting' || entry.status === 'called');
+                        displayWaitingQueue(activeQueue);
+                    } else if (mode === 'waiting') {
+                        // waiting 상태만 필터링 (하위 호환성)
                         const waitingQueue = data.queue.filter(entry => entry.status === 'waiting');
                         displayWaitingQueue(waitingQueue);
                     } else {
@@ -222,7 +226,7 @@
                         displayAllQueue(data.queue);
                     }
                 } else {
-                    if (mode === 'waiting') {
+                    if (mode === 'active' || mode === 'waiting') {
                         displayWaitingQueue([]);
                     } else {
                         displayAllQueue([]);
@@ -230,7 +234,7 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
-                if (mode === 'waiting') {
+                if (mode === 'active' || mode === 'waiting') {
                     displayWaitingQueue([]);
                 } else {
                     displayAllQueue([]);
@@ -250,12 +254,27 @@
             let html = `<div class="neon-info"><h4 style="color: #00ffe7;">현재 대기자: ${queue.length}명</h4>`;
             
             queue.forEach((entry, index) => {
-                html += `
-                    <div style="border: 1px solid #00ffe744; padding: 10px; margin: 5px 0; border-radius: 5px;">
-                        <p><strong>${index + 1}번.</strong> ${entry.student_name} (${entry.student_school})</p>
-                        <p>신청시간: ${new Date(entry.applied_at).toLocaleString()}</p>
+                const statusText = entry.status === 'waiting' ? '대기중' : '호출됨';
+                const statusColor = entry.status === 'waiting' ? '#00ffe7' : '#ffa500';
+                
+                let buttons = '';
+                if (entry.status === 'waiting') {
+                    buttons = `
                         <button onclick="callStudent(${entry.id})" class="neon-btn" style="margin-right: 10px;">호출</button>
                         <button onclick="completeStudent(${entry.id})" class="neon-btn">완료</button>
+                    `;
+                } else if (entry.status === 'called') {
+                    buttons = `
+                        <button onclick="recallStudent(${entry.id})" class="neon-btn" style="margin-right: 10px; background: #ffa500;">재호출</button>
+                        <button onclick="completeStudent(${entry.id})" class="neon-btn">완료</button>
+                    `;
+                }
+                
+                html += `
+                    <div style="border: 1px solid #00ffe744; padding: 10px; margin: 5px 0; border-radius: 5px;">
+                        <p><strong>${index + 1}번.</strong> ${entry.student_name} (${entry.student_school}) - <span style="color: ${statusColor}">${statusText}</span></p>
+                        <p>신청시간: ${new Date(entry.applied_at).toLocaleString()}</p>
+                        ${buttons}
                     </div>
                 `;
             });
@@ -281,15 +300,30 @@
                 const statusColor = entry.status === 'waiting' ? '#00ffe7' : 
                                   entry.status === 'called' ? '#ffa500' : '#00ff00';
                 
+                let buttons = '';
+                if (entry.status === 'waiting') {
+                    buttons = `
+                        <button onclick="callStudent(${entry.id})" class="neon-btn" style="margin-right: 10px;">호출</button>
+                        <button onclick="completeStudent(${entry.id})" class="neon-btn">완료</button>
+                    `;
+                } else if (entry.status === 'called') {
+                    buttons = `
+                        <button onclick="recallStudent(${entry.id})" class="neon-btn" style="margin-right: 10px; background: #ffa500;">재호출</button>
+                        <button onclick="completeStudent(${entry.id})" class="neon-btn">완료</button>
+                        <button onclick="revertStudent(${entry.id})" class="neon-btn" style="background: #ff6b6b;">되돌리기</button>
+                    `;
+                } else if (entry.status === 'completed') {
+                    buttons = `
+                        <button onclick="revertStudent(${entry.id})" class="neon-btn" style="background: #ff6b6b;">되돌리기</button>
+                    `;
+                }
+                
                 html += `
                     <div style="border: 1px solid #00ffe744; padding: 10px; margin: 5px 0; border-radius: 5px;">
                         <p><strong>${index + 1}번.</strong> ${entry.student_name} (${entry.student_school})</p>
                         <p>상태: <span style="color: ${statusColor}">${statusText}</span></p>
                         <p>신청시간: ${new Date(entry.applied_at).toLocaleString()}</p>
-                        ${entry.status === 'waiting' ? `
-                            <button onclick="callStudent(${entry.id})" class="neon-btn" style="margin-right: 10px;">호출</button>
-                            <button onclick="completeStudent(${entry.id})" class="neon-btn">완료</button>
-                        ` : ''}
+                        ${buttons}
                     </div>
                 `;
             });
@@ -355,6 +389,72 @@
             } catch (error) {
                 console.error('Error:', error);
                 alert('완료 처리 중 오류가 발생했습니다.');
+            }
+        }
+        
+        // 학생 재호출
+        async function recallStudent(entryId) {
+            try {
+                const response = await fetch('/api/recall-student', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        entry_id: entryId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert(data.message);
+                    // 실제 대기자 목록과 전체 대기열 모두 새로고침
+                    loadWaitingQueue();
+                    if (document.getElementById('allQueueModal').style.display === 'block') {
+                        loadAllQueue();
+                    }
+                } else {
+                    alert('재호출 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('재호출 중 오류가 발생했습니다.');
+            }
+        }
+        
+        // 학생 되돌리기 (대기 상태로)
+        async function revertStudent(entryId) {
+            if (!confirm('이 학생을 대기 상태로 되돌리시겠습니까?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/revert-student', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        entry_id: entryId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    alert(data.message);
+                    // 실제 대기자 목록과 전체 대기열 모두 새로고침
+                    loadWaitingQueue();
+                    if (document.getElementById('allQueueModal').style.display === 'block') {
+                        loadAllQueue();
+                    }
+                } else {
+                    alert('되돌리기 실패: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('되돌리기 중 오류가 발생했습니다.');
             }
         }
         
