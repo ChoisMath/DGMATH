@@ -20,7 +20,6 @@
         <div class="admin-menu">
             <button class="neon-btn" onclick="showSection('booth-management')">부스 관리</button>
             <button class="neon-btn" onclick="showSection('queue-management')">대기열 관리</button>
-            <button class="neon-btn" onclick="showSection('my-booths')">내 부스 목록</button>
             <button class="neon-btn" onclick="logout()">로그아웃</button>
         </div>
         
@@ -28,7 +27,10 @@
         <div id="booth-management" class="section" style="display: none;">
             <h3 style="color: #00ffe7;">부스 관리</h3>
             
-            <div class="neon-info">
+            <!-- 내 부스 목록 -->
+            <div id="myBoothsList"></div>
+            
+            <div class="neon-info" style="margin-top: 20px;">
                 <h4>새 부스 생성</h4>
                 <form id="createBoothForm">
                     <label>부스 이름 <input type="text" id="booth_name" required></label><br>
@@ -56,11 +58,6 @@
             <div id="queueList" style="margin-top: 20px;"></div>
         </div>
         
-        <!-- 내 부스 목록 섹션 -->
-        <div id="my-booths" class="section" style="display: none;">
-            <h3 style="color: #00ffe7;">내 부스 목록</h3>
-            <div id="myBoothsList"></div>
-        </div>
     </div>
     
     <script>
@@ -82,11 +79,16 @@
             document.getElementById('boothTopic').textContent = currentOperator.booth_topic;
             document.getElementById('school').textContent = currentOperator.school;
             
-            // 초기 섹션 표시
-            showSection('booth-management');
-            
-            // 부스 목록 로드
-            loadMyBooths();
+            // 부스 목록 로드 후 초기 섹션 결정
+            loadMyBooths().then(hasBooths => {
+                if (hasBooths) {
+                    // 부스가 있으면 대기열 관리 표시
+                    showSection('queue-management');
+                } else {
+                    // 부스가 없으면 부스 관리 표시
+                    showSection('booth-management');
+                }
+            });
         });
         
         // 섹션 표시
@@ -101,7 +103,7 @@
             
             if (sectionId === 'queue-management') {
                 loadBoothsForQueue();
-            } else if (sectionId === 'my-booths') {
+            } else if (sectionId === 'booth-management') {
                 loadMyBooths();
             }
         }
@@ -130,9 +132,10 @@
                 const data = await response.json();
                 
                 if (data.ok) {
-                    alert('부스가 성공적으로 생성되었습니다!');
                     document.getElementById('createBoothForm').reset();
                     loadMyBooths();
+                    // 부스 생성 후 대기열 관리로 이동
+                    showSection('queue-management');
                 } else {
                     alert('부스 생성 실패: ' + data.message);
                 }
@@ -161,12 +164,18 @@
                     const select = document.getElementById('boothSelect');
                     select.innerHTML = '<option value="">부스를 선택하세요</option>';
                     
-                    data.booths.forEach(booth => {
+                    data.booths.forEach((booth, index) => {
                         const option = document.createElement('option');
                         option.value = booth.id;
                         option.textContent = booth.name;
+                        if (index === 0) option.selected = true; // 첫 번째 부스 자동 선택
                         select.appendChild(option);
                     });
+                    
+                    // 첫 번째 부스가 있으면 자동으로 대기열 로드
+                    if (data.booths.length > 0) {
+                        loadQueue();
+                    }
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -255,7 +264,6 @@
                 const data = await response.json();
                 
                 if (data.ok) {
-                    alert('학생에게 호출 메시지가 발송되었습니다.');
                     loadQueue();
                 } else {
                     alert('호출 실패: ' + data.message);
@@ -282,7 +290,6 @@
                 const data = await response.json();
                 
                 if (data.ok) {
-                    alert('학생이 완료 처리되었습니다.');
                     loadQueue();
                 } else {
                     alert('완료 처리 실패: ' + data.message);
@@ -310,12 +317,15 @@
                 
                 if (data.ok) {
                     displayMyBooths(data.booths);
+                    return data.booths.length > 0;
                 } else {
                     document.getElementById('myBoothsList').innerHTML = '<div class="neon-info">부스 목록 조회 실패</div>';
+                    return false;
                 }
             } catch (error) {
                 console.error('Error:', error);
                 document.getElementById('myBoothsList').innerHTML = '<div class="neon-info">오류 발생</div>';
+                return false;
             }
         }
         

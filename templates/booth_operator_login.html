@@ -56,7 +56,6 @@
                     // 로그인 성공시 운영자 정보를 세션에 저장
                     sessionStorage.setItem('boothOperatorInfo', JSON.stringify(data.operator));
                     
-                    alert('로그인되었습니다!');
                     window.location.href = '/booth-operator-dashboard';
                 } else {
                     alert('로그인 실패: ' + data.message);

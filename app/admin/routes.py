@@ -575,7 +575,6 @@ def add_booth_operator_account():
             'school': data['school'],
             'club_name': data['club_name'],
             'booth_topic': data['booth_topic'],
-            'name': data['name'],
             'phone': data['phone'],
             'email': data['email'],
             'is_active': True
