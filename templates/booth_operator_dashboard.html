@@ -18,20 +18,15 @@
         
         <!-- 메뉴 -->
         <div class="admin-menu">
-            <button class="neon-btn" onclick="showSection('booth-management')">부스 관리</button>
-            <button class="neon-btn" onclick="showSection('queue-management')">대기열 관리</button>
+            <button id="allQueueBtn" class="neon-btn" onclick="showAllQueue()" style="display: none;">전체 대기열 관리</button>
             <button class="neon-btn" onclick="logout()">로그아웃</button>
         </div>
         
-        <!-- 부스 관리 섹션 -->
-        <div id="booth-management" class="section" style="display: none;">
-            <h3 style="color: #00ffe7;">부스 관리</h3>
-            
-            <!-- 내 부스 목록 -->
-            <div id="myBoothsList"></div>
-            
-            <div class="neon-info" style="margin-top: 20px;">
-                <h4>새 부스 생성</h4>
+        <!-- 메인 콘텐츠 -->
+        <div id="mainContent">
+            <!-- 부스가 없을 때: 새 부스 생성 폼만 표시 -->
+            <div id="createBoothSection" class="neon-info" style="display: none;">
+                <h3 style="color: #00ffe7;">새 부스 생성</h3>
                 <form id="createBoothForm">
                     <label>부스 이름 <input type="text" id="booth_name" required></label><br>
                     <label>운영 장소 <input type="text" id="booth_location" required></label><br>
@@ -40,22 +35,21 @@
                     <button type="submit" class="neon-btn">부스 생성</button>
                 </form>
             </div>
+            
+            <!-- 부스가 있을 때: 부스 정보 + 실제 대기자 표시 -->
+            <div id="boothSection" style="display: none;">
+                <div id="myBoothsList"></div>
+                <div id="waitingQueueSection" style="margin-top: 20px;"></div>
+            </div>
         </div>
         
-        <!-- 대기열 관리 섹션 -->
-        <div id="queue-management" class="section" style="display: none;">
-            <h3 style="color: #00ffe7;">대기열 관리</h3>
-            
-            <div class="neon-info">
-                <label>부스 선택 
-                    <select id="boothSelect">
-                        <option value="">부스를 선택하세요</option>
-                    </select>
-                </label>
-                <button type="button" class="neon-btn" onclick="loadQueue()">대기열 조회</button>
+        <!-- 전체 대기열 관리 모달 -->
+        <div id="allQueueModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeAllQueueModal()">&times;</span>
+                <h3 style="color: #00ffe7;">전체 대기열 관리</h3>
+                <div id="allQueueList"></div>
             </div>
-            
-            <div id="queueList" style="margin-top: 20px;"></div>
         </div>
         
     </div>
@@ -79,33 +73,42 @@
             document.getElementById('boothTopic').textContent = currentOperator.booth_topic;
             document.getElementById('school').textContent = currentOperator.school;
             
-            // 부스 목록 로드 후 초기 섹션 결정
+            // 부스 목록 로드 후 초기 화면 결정
             loadMyBooths().then(hasBooths => {
                 if (hasBooths) {
-                    // 부스가 있으면 대기열 관리 표시
-                    showSection('queue-management');
+                    // 부스가 있으면 부스 정보 + 대기자 표시
+                    showBoothSection();
                 } else {
-                    // 부스가 없으면 부스 관리 표시
-                    showSection('booth-management');
+                    // 부스가 없으면 생성 폼만 표시
+                    showCreateBoothSection();
                 }
             });
         });
         
-        // 섹션 표시
-        function showSection(sectionId) {
-            // 모든 섹션 숨기기
-            document.querySelectorAll('.section').forEach(section => {
-                section.style.display = 'none';
-            });
-            
-            // 선택된 섹션 표시
-            document.getElementById(sectionId).style.display = 'block';
-            
-            if (sectionId === 'queue-management') {
-                loadBoothsForQueue();
-            } else if (sectionId === 'booth-management') {
-                loadMyBooths();
-            }
+        // 부스가 없을 때 생성 폼만 표시
+        function showCreateBoothSection() {
+            document.getElementById('createBoothSection').style.display = 'block';
+            document.getElementById('boothSection').style.display = 'none';
+            document.getElementById('allQueueBtn').style.display = 'none';
+        }
+        
+        // 부스가 있을 때 부스 정보 + 실제 대기자 표시
+        function showBoothSection() {
+            document.getElementById('createBoothSection').style.display = 'none';
+            document.getElementById('boothSection').style.display = 'block';
+            document.getElementById('allQueueBtn').style.display = 'inline-block';
+            loadWaitingQueue();
+        }
+        
+        // 전체 대기열 모달 표시
+        function showAllQueue() {
+            loadAllQueue();
+            document.getElementById('allQueueModal').style.display = 'block';
+        }
+        
+        // 전체 대기열 모달 닫기
+        function closeAllQueueModal() {
+            document.getElementById('allQueueModal').style.display = 'none';
         }
         
         // 부스 생성
@@ -133,9 +136,10 @@
                 
                 if (data.ok) {
                     document.getElementById('createBoothForm').reset();
-                    loadMyBooths();
-                    // 부스 생성 후 대기열 관리로 이동
-                    showSection('queue-management');
+                    // 부스 생성 후 부스 섹션으로 전환
+                    loadMyBooths().then(() => {
+                        showBoothSection();
+                    });
                 } else {
                     alert('부스 생성 실패: ' + data.message);
                 }
@@ -145,8 +149,8 @@
             }
         };
         
-        // 대기열 관리용 부스 목록 로드
-        async function loadBoothsForQueue() {
+        // 실제 대기자만 로드 (waiting 상태만)
+        async function loadWaitingQueue() {
             try {
                 const response = await fetch('/api/operator-booths', {
                     method: 'POST',
@@ -160,36 +164,41 @@
                 
                 const data = await response.json();
                 
-                if (data.ok) {
-                    const select = document.getElementById('boothSelect');
-                    select.innerHTML = '<option value="">부스를 선택하세요</option>';
-                    
-                    data.booths.forEach((booth, index) => {
-                        const option = document.createElement('option');
-                        option.value = booth.id;
-                        option.textContent = booth.name;
-                        if (index === 0) option.selected = true; // 첫 번째 부스 자동 선택
-                        select.appendChild(option);
-                    });
-                    
-                    // 첫 번째 부스가 있으면 자동으로 대기열 로드
-                    if (data.booths.length > 0) {
-                        loadQueue();
-                    }
+                if (data.ok && data.booths.length > 0) {
+                    const boothId = data.booths[0].id; // 첫 번째 부스 사용
+                    await loadQueueForBooth(boothId, 'waiting'); // waiting 상태만 로드
                 }
             } catch (error) {
                 console.error('Error:', error);
             }
         }
         
-        // 대기열 조회
-        async function loadQueue() {
-            const boothId = document.getElementById('boothSelect').value;
-            if (!boothId) {
-                alert('부스를 선택해주세요.');
-                return;
+        // 전체 대기열 로드 (모든 상태 포함)
+        async function loadAllQueue() {
+            try {
+                const response = await fetch('/api/operator-booths', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        operator_id: currentOperator.id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok && data.booths.length > 0) {
+                    const boothId = data.booths[0].id; // 첫 번째 부스 사용
+                    await loadQueueForBooth(boothId, 'all'); // 모든 상태 로드
+                }
+            } catch (error) {
+                console.error('Error:', error);
             }
-            
+        }
+        
+        // 특정 부스의 대기열 조회
+        async function loadQueueForBooth(boothId, mode = 'all') {
             try {
                 const response = await fetch('/api/booth-queue', {
                     method: 'POST',
@@ -204,26 +213,67 @@
                 const data = await response.json();
                 
                 if (data.ok) {
-                    displayQueue(data.queue);
+                    if (mode === 'waiting') {
+                        // waiting 상태만 필터링
+                        const waitingQueue = data.queue.filter(entry => entry.status === 'waiting');
+                        displayWaitingQueue(waitingQueue);
+                    } else {
+                        // 전체 대기열 표시
+                        displayAllQueue(data.queue);
+                    }
                 } else {
-                    alert('대기열 조회 실패: ' + data.message);
+                    if (mode === 'waiting') {
+                        displayWaitingQueue([]);
+                    } else {
+                        displayAllQueue([]);
+                    }
                 }
             } catch (error) {
                 console.error('Error:', error);
-                alert('대기열 조회 중 오류가 발생했습니다.');
+                if (mode === 'waiting') {
+                    displayWaitingQueue([]);
+                } else {
+                    displayAllQueue([]);
+                }
             }
         }
         
-        // 대기열 표시
-        function displayQueue(queue) {
-            const queueList = document.getElementById('queueList');
+        // 실제 대기자만 표시 (부스 아래에 간단하게)
+        function displayWaitingQueue(queue) {
+            const waitingSection = document.getElementById('waitingQueueSection');
             
             if (queue.length === 0) {
-                queueList.innerHTML = '<div class="neon-info">대기 중인 학생이 없습니다.</div>';
+                waitingSection.innerHTML = '<div class="neon-info"><h4 style="color: #00ffe7;">현재 대기자: 0명</h4><p>대기 중인 학생이 없습니다.</p></div>';
                 return;
             }
             
-            let html = '<div class="neon-info"><h4>대기열 현황</h4>';
+            let html = `<div class="neon-info"><h4 style="color: #00ffe7;">현재 대기자: ${queue.length}명</h4>`;
+            
+            queue.forEach((entry, index) => {
+                html += `
+                    <div style="border: 1px solid #00ffe744; padding: 10px; margin: 5px 0; border-radius: 5px;">
+                        <p><strong>${index + 1}번.</strong> ${entry.student_name} (${entry.student_school})</p>
+                        <p>신청시간: ${new Date(entry.applied_at).toLocaleString()}</p>
+                        <button onclick="callStudent(${entry.id})" class="neon-btn" style="margin-right: 10px;">호출</button>
+                        <button onclick="completeStudent(${entry.id})" class="neon-btn">완료</button>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            waitingSection.innerHTML = html;
+        }
+        
+        // 전체 대기열 표시 (모달에서)
+        function displayAllQueue(queue) {
+            const allQueueList = document.getElementById('allQueueList');
+            
+            if (queue.length === 0) {
+                allQueueList.innerHTML = '<div class="neon-info">대기열이 없습니다.</div>';
+                return;
+            }
+            
+            let html = '<div class="neon-info">';
             
             queue.forEach((entry, index) => {
                 const statusText = entry.status === 'waiting' ? '대기중' : 
@@ -245,7 +295,7 @@
             });
             
             html += '</div>';
-            queueList.innerHTML = html;
+            allQueueList.innerHTML = html;
         }
         
         // 학생 호출
@@ -264,7 +314,11 @@
                 const data = await response.json();
                 
                 if (data.ok) {
-                    loadQueue();
+                    // 실제 대기자 목록과 전체 대기열 모두 새로고침
+                    loadWaitingQueue();
+                    if (document.getElementById('allQueueModal').style.display === 'block') {
+                        loadAllQueue();
+                    }
                 } else {
                     alert('호출 실패: ' + data.message);
                 }
@@ -290,7 +344,11 @@
                 const data = await response.json();
                 
                 if (data.ok) {
-                    loadQueue();
+                    // 실제 대기자 목록과 전체 대기열 모두 새로고침
+                    loadWaitingQueue();
+                    if (document.getElementById('allQueueModal').style.display === 'block') {
+                        loadAllQueue();
+                    }
                 } else {
                     alert('완료 처리 실패: ' + data.message);
                 }
@@ -373,6 +431,14 @@
             window.location.href = '/booth-operator-login';
         }
         
+        // 모달 외부 클릭시 닫기
+        window.onclick = function(event) {
+            const modal = document.getElementById('allQueueModal');
+            if (event.target === modal) {
+                closeAllQueueModal();
+            }
+        }
+        
         // CSS 스타일 추가
         const style = document.createElement('style');
         style.textContent = `
@@ -412,6 +478,42 @@
             .section button {
                 margin-top: 10px;
                 margin-right: 10px;
+            }
+            
+            .modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 1000;
+            }
+            
+            .modal-content {
+                background: #23263a;
+                border: 2px solid #00ffe7;
+                border-radius: 8px;
+                max-width: 800px;
+                max-height: 80vh;
+                overflow-y: auto;
+                margin: 50px auto;
+                padding: 20px;
+                position: relative;
+            }
+            
+            .close {
+                position: absolute;
+                top: 10px;
+                right: 20px;
+                font-size: 28px;
+                font-weight: bold;
+                color: #00ffe7;
+                cursor: pointer;
+            }
+            
+            .close:hover {
+                color: #fff;
             }
         `;
         document.head.appendChild(style);
