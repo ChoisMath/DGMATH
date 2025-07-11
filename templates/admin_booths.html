@@ -21,7 +21,7 @@
                     <tr style="background: #181c2b; border-bottom: 2px solid #00ffe7;">
                         <th style="padding: 12px; text-align: left; color: #00ffe7;">부스명</th>
                         <th style="padding: 12px; text-align: left; color: #00ffe7;">설명</th>
-                        <th style="padding: 12px; text-align: left; color: #00ffe7;">운영자 교사명</th>
+                        <th style="padding: 12px; text-align: left; color: #00ffe7;">운영자</th>
                         <th style="padding: 12px; text-align: center; color: #00ffe7;">상태</th>
                         <th style="padding: 12px; text-align: center; color: #00ffe7;">QR코드</th>
                         <th style="padding: 12px; text-align: center; color: #00ffe7;">생성일</th>
@@ -33,7 +33,14 @@
                     <tr style="border-bottom: 1px solid #00ffe744;">
                         <td style="padding: 12px; color: #fff; font-weight: bold;"><a href="/admin/edit-booth/{{ booth.id }}" style="color: #00ffe7; text-decoration: none;">{{ booth.name }}</a></td>
                         <td style="padding: 12px; color: #ccc;">{{ booth.description or '설명 없음' }}</td>
-                        <td style="padding: 12px; color: #ccc;">{{ booth.operator_club_name }}</td>
+                        <td style="padding: 12px; color: #ccc;">
+                            {% if booth.operator_club_name and booth.operator_club_name != '운영자 없음' %}
+                                {{ booth.operator_club_name }}<br>
+                                <small style="color: #888;">({{ booth.operator_school }})</small>
+                            {% else %}
+                                <span style="color: #666;">운영자 없음</span>
+                            {% endif %}
+                        </td>
                         <td style="padding: 12px; text-align: center;">
                             {% if booth.is_active %}
                                 <span style="color: #00ffe7; font-weight: bold;">활성</span>
@@ -45,7 +52,7 @@
                             {% if booth.qr_file_path %}
                                 <a href="/admin/download-qr/{{ booth.name }}" class="neon-btn" style="font-size: 0.8em; padding: 4px 8px;">QR 다운로드</a>
                             {% else %}
-                                <span style="color: #666;">QR 없음</span>
+                                <button onclick="generateQRForBooth('{{ booth.name }}', '{{ booth.description or '' }}')" class="neon-btn" style="font-size: 0.8em; padding: 4px 8px; background: #ffa500;">QR 생성</button>
                             {% endif %}
                         </td>
                         <td style="padding: 12px; text-align: center; color: #ccc; font-size: 0.9em;">
@@ -86,5 +93,35 @@
             </form>
         </div>
     </div>
+    
+    <script>
+        async function generateQRForBooth(boothName, boothDescription) {
+            if (!confirm(`부스 "${boothName}"의 QR 코드를 생성하시겠습니까?`)) {
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('booth_name', boothName);
+                formData.append('booth_description', boothDescription || '');
+                
+                const response = await fetch('/admin/generate-qr-for-booth', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    alert('QR 코드가 성공적으로 생성되었습니다.');
+                    window.location.reload(); // 페이지 새로고침
+                } else {
+                    const error = await response.json();
+                    alert('QR 코드 생성 실패: ' + (error.message || error.error));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('QR 코드 생성 중 오류가 발생했습니다.');
+            }
+        }
+    </script>
 </body>
 </html>

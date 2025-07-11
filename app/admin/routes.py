@@ -192,6 +192,60 @@ def regenerate_qr_code(booth_name):
         flash(f'QR 코드 재생성 중 오류: {str(e)}', 'danger')
         return redirect(url_for('admin.admin_booths'))
 
+@admin_bp.route('/generate-qr-for-booth', methods=['POST'])
+def generate_qr_for_booth():
+    """Generate QR code for existing booth"""
+    auth_check = admin_required()
+    if auth_check:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    if not SUPABASE_AVAILABLE:
+        return jsonify({'error': 'Supabase not configured'}), 500
+    
+    booth_name = request.form.get('booth_name')
+    booth_description = request.form.get('booth_description', '')
+    
+    if not booth_name:
+        return jsonify({'error': '부스명이 필요합니다.'}), 400
+    
+    try:
+        # Check if booth exists
+        booth_result = supabase.table('booths').select('*').eq('name', booth_name).execute()
+        
+        if not booth_result.data:
+            return jsonify({'error': '해당 부스를 찾을 수 없습니다.'}), 404
+        
+        booth = booth_result.data[0]
+        
+        # Generate QR code URL
+        base_url = os.environ.get('BASE_URL', 'https://dgmathft.up.railway.app')
+        qr_url = f"{base_url}/checkin?booth={booth_name}"
+        
+        # Create QR code
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(qr_url)
+        qr.make(fit=True)
+        
+        # Generate QR code image
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Create final image with booth name
+        final_img = create_qr_with_text(qr_img, booth_name)
+        
+        # Save QR code file
+        qr_file_path = save_qr_code_file(booth_name, final_img)
+        
+        # Update booth record with QR file path
+        supabase.table('booths').update({
+            'qr_file_path': qr_file_path,
+            'updated_at': 'now()'
+        }).eq('id', booth['id']).execute()
+        
+        return jsonify({'ok': True, 'message': 'QR 코드가 성공적으로 생성되었습니다.'})
+        
+    except Exception as e:
+        return jsonify({'error': f'QR 코드 생성 중 오류: {str(e)}'}), 500
+
 # === Booth Management ===
 
 @admin_bp.route('/booths')
@@ -204,9 +258,27 @@ def admin_booths():
         flash('Supabase not configured.', 'danger')
         return redirect(url_for('admin.admin_login'))
     
-    # Query all booths
-    result = supabase.table('booths').select('*').order('created_at', desc=True).execute()
-    booths = result.data if result.data else []
+    # Query all booths with operator information
+    result = supabase.table('booths').select('''
+        *,
+        booth_operators(club_name, school, operator_id)
+    ''').order('created_at', desc=True).execute()
+    
+    booths = []
+    if result.data:
+        for booth in result.data:
+            # Flatten operator information for template access
+            booth_data = booth.copy()
+            if 'booth_operators' in booth and booth['booth_operators']:
+                operator = booth['booth_operators']
+                booth_data['operator_club_name'] = operator['club_name']
+                booth_data['operator_school'] = operator['school']
+                booth_data['operator_id_display'] = operator['operator_id']
+            else:
+                booth_data['operator_club_name'] = '운영자 없음'
+                booth_data['operator_school'] = '-'
+                booth_data['operator_id_display'] = '-'
+            booths.append(booth_data)
     
     return render_template('admin_booths.html', booths=booths)
 

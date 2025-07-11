@@ -6,11 +6,12 @@
 import os
 import json
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify, session, flash, send_file
+import qrcode
 
 # Import shared utilities and database connections
 from app.db import get_supabase
-from app.utils import send_sms_notification, generate_safe_filename
+from app.utils import send_sms_notification, generate_safe_filename, create_qr_with_text, save_qr_code_file
 
 # Get database connection
 supabase = get_supabase()
@@ -218,6 +219,37 @@ def api_create_booth():
         result = supabase.table('booths').insert(booth_data).execute()
         
         if result.data:
+            created_booth = result.data[0]
+            
+            # QR 코드 자동 생성
+            try:
+                
+                # Generate QR code URL
+                base_url = os.environ.get('BASE_URL', 'https://dgmathft.up.railway.app')
+                qr_url = f"{base_url}/checkin?booth={name}"
+                
+                # Create QR code
+                qr = qrcode.QRCode(version=1, box_size=10, border=5)
+                qr.add_data(qr_url)
+                qr.make(fit=True)
+                
+                # Generate QR code image
+                qr_img = qr.make_image(fill_color="black", back_color="white")
+                
+                # Create final image with booth name
+                final_img = create_qr_with_text(qr_img, name)
+                
+                # Save QR code file
+                qr_file_path = save_qr_code_file(name, final_img)
+                
+                # Update booth record with QR file path
+                supabase.table('booths').update({
+                    'qr_file_path': qr_file_path
+                }).eq('id', created_booth['id']).execute()
+                
+            except Exception as qr_error:
+                print(f"QR 코드 생성 오류 (부스는 정상 생성됨): {str(qr_error)}")
+            
             return jsonify({'ok': True, 'message': '부스가 성공적으로 생성되었습니다.'})
         else:
             return jsonify({'ok': False, 'message': '부스 생성에 실패했습니다.'})
@@ -542,6 +574,59 @@ def api_revert_student():
             
     except Exception as e:
         return jsonify({'ok': False, 'message': f'되돌리기 중 오류: {str(e)}'})
+
+@booth_bp.route('/api/download-qr/<booth_name>')
+def api_download_qr(booth_name):
+    """부스 운영자용 QR 코드 다운로드 API"""
+    if not session.get('boothOperatorInfo'):
+        return jsonify({'ok': False, 'message': 'Unauthorized'}), 401
+    
+    if not SUPABASE_AVAILABLE:
+        return jsonify({'ok': False, 'message': 'Supabase not configured'}), 500
+    
+    try:
+        current_operator = json.loads(session.get('boothOperatorInfo'))
+        
+        # 해당 부스가 현재 운영자의 부스인지 확인
+        booth_result = supabase.table('booths').select('*').eq('name', booth_name).eq('operator_id', current_operator['id']).execute()
+        
+        if not booth_result.data:
+            return jsonify({'ok': False, 'message': '해당 부스에 대한 권한이 없습니다.'}), 403
+        
+        booth = booth_result.data[0]
+        
+        if booth['qr_file_path'] and os.path.exists(booth['qr_file_path']):
+            return send_file(booth['qr_file_path'], as_attachment=True, download_name=f'qr_{booth_name}.png')
+        else:
+            # QR 코드가 없으면 새로 생성
+            
+            # Generate QR code URL
+            base_url = os.environ.get('BASE_URL', 'https://dgmathft.up.railway.app')
+            qr_url = f"{base_url}/checkin?booth={booth_name}"
+            
+            # Create QR code
+            qr = qrcode.QRCode(version=1, box_size=10, border=5)
+            qr.add_data(qr_url)
+            qr.make(fit=True)
+            
+            # Generate QR code image
+            qr_img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Create final image with booth name
+            final_img = create_qr_with_text(qr_img, booth_name)
+            
+            # Save QR code file
+            qr_file_path = save_qr_code_file(booth_name, final_img)
+            
+            # Update booth record with QR file path
+            supabase.table('booths').update({
+                'qr_file_path': qr_file_path
+            }).eq('id', booth['id']).execute()
+            
+            return send_file(qr_file_path, as_attachment=True, download_name=f'qr_{booth_name}.png')
+            
+    except Exception as e:
+        return jsonify({'ok': False, 'message': f'QR 코드 다운로드 중 오류: {str(e)}'}), 500
 
 # =============================================================================
 # 하위 호환성을 위한 비-prefix 라우트들 (기존 app.py에서 마이그레이션)
