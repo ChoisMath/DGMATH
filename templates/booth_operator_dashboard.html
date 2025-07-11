@@ -426,7 +426,20 @@
         }
         
         // 로그아웃
-        function logout() {
+        async function logout() {
+            try {
+                // 서버 세션 제거
+                await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            
+            // 클라이언트 세션 제거
             sessionStorage.removeItem('boothOperatorInfo');
             window.location.href = '/booth-operator-login';
         }

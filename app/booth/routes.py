@@ -124,6 +124,18 @@ def api_login():
         
         if result.data:
             operator = result.data[0]
+            
+            # 서버 세션에 부스운영자 정보 저장
+            session['boothOperatorInfo'] = json.dumps({
+                'id': operator['id'],
+                'operator_id': operator['operator_id'],
+                'school': operator['school'],
+                'club_name': operator['club_name'],
+                'booth_topic': operator['booth_topic'],
+                'phone': operator['phone'],
+                'email': operator['email']
+            })
+            
             return jsonify({
                 'ok': True,
                 'operator': {
@@ -141,6 +153,12 @@ def api_login():
             
     except Exception as e:
         return jsonify({'ok': False, 'message': f'로그인 중 오류: {str(e)}'})
+
+@booth_bp.route('/api/logout', methods=['POST'])
+def api_logout():
+    """부스 운영자 로그아웃 API"""
+    session.pop('boothOperatorInfo', None)
+    return jsonify({'ok': True, 'message': '로그아웃되었습니다.'})
 
 # =============================================================================
 # 부스 운영자 대시보드 및 부스 관리
